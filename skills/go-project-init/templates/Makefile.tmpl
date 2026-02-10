@@ -1,0 +1,50 @@
+# Go project Makefile template - replace {{.AppName}} with your app name
+
+.PHONY: all build test lint run clean migrate
+
+APP_NAME := {{.AppName}}
+BUILD_DIR := ./bin
+
+all: lint test build
+
+build:
+	go build -o $(BUILD_DIR)/$(APP_NAME) ./cmd/$(APP_NAME)
+
+run:
+	go run ./cmd/$(APP_NAME)
+
+test:
+	go test -race -count=1 ./...
+
+test-coverage:
+	go test -race -coverprofile=coverage.out ./...
+	go tool cover -html=coverage.out -o coverage.html
+
+lint:
+	golangci-lint run ./...
+
+fmt:
+	goimports -w .
+	gofmt -s -w .
+
+vet:
+	go vet ./...
+
+tidy:
+	go mod tidy
+	go mod verify
+
+clean:
+	rm -rf $(BUILD_DIR) coverage.out coverage.html
+
+migrate-up:
+	migrate -path migrations -database "$(DATABASE_URL)" up
+
+migrate-down:
+	migrate -path migrations -database "$(DATABASE_URL)" down 1
+
+docker-build:
+	docker build -t $(APP_NAME) .
+
+docker-run:
+	docker compose up -d

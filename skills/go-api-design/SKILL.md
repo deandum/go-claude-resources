@@ -1,8 +1,8 @@
 ---
 name: go-api-design
 description: >
-  HTTP and gRPC API design patterns for Go using go-chi router. Use when building REST APIs,
-  gRPC services, middleware, or HTTP handlers. Covers routing, request
+  HTTP API design patterns for Go using go-chi router. Use when building REST APIs,
+  middleware, or HTTP handlers. Covers routing, request
   validation, response formatting, and graceful shutdown.
 ---
 
@@ -10,14 +10,18 @@ description: >
 
 Design clear, consistent APIs using the go-chi router for idiomatic HTTP handling.
 
-## When to Apply
+## Contents
 
-Use this skill when:
-- Building HTTP REST APIs
-- Building gRPC services
-- Designing middleware chains
-- Structuring HTTP handlers
-- Implementing request validation and response formatting
+- [HTTP Handler Structure](#http-handler-structure)
+- [JSON Helpers](#json-helpers)
+- [Middleware](#middleware)
+- [Server Configuration](#server-configuration)
+- [Graceful Shutdown](#graceful-shutdown)
+- [API Versioning](#api-versioning)
+- [Health Check Endpoint](#health-check-endpoint)
+- [Chi Route Groups and Sub-routers](#chi-route-groups-and-sub-routers)
+- [Chi Built-in Middleware](#chi-built-in-middleware)
+- [Additional Resources](#additional-resources)
 
 ## HTTP Handler Structure
 
@@ -83,24 +87,9 @@ func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
     // 4. Respond
     writeJSON(w, http.StatusCreated, toUserResponse(user))
 }
-
-func (h *Handler) GetUser(w http.ResponseWriter, r *http.Request) {
-    // Extract URL parameter
-    id := chi.URLParam(r, "id")
-    if id == "" {
-        writeError(w, http.StatusBadRequest, "user id is required")
-        return
-    }
-
-    user, err := h.svc.GetByID(r.Context(), id)
-    if err != nil {
-        h.handleError(w, r, err)
-        return
-    }
-
-    writeJSON(w, http.StatusOK, toUserResponse(user))
-}
 ```
+
+All handlers follow this same parse → validate → execute → respond structure. Extract URL parameters with `chi.URLParam(r, "id")`.
 
 ### Request and Response Types
 
@@ -174,13 +163,39 @@ type errorBody struct {
 func writeError(w http.ResponseWriter, status int, msg string) {
     writeJSON(w, status, errorBody{Error: msg})
 }
+
+// handleError maps domain/application errors to HTTP status codes.
+// Adapt the error types to match your application's error package.
+func (h *Handler) handleError(w http.ResponseWriter, r *http.Request, err error) {
+    switch {
+    case errors.Is(err, domain.ErrNotFound):
+        writeError(w, http.StatusNotFound, "resource not found")
+    case errors.Is(err, domain.ErrConflict):
+        writeError(w, http.StatusConflict, "resource already exists")
+    case errors.Is(err, domain.ErrValidation):
+        writeError(w, http.StatusUnprocessableEntity, err.Error())
+    default:
+        h.logger.Error("internal error",
+            "error", err,
+            "path", r.URL.Path,
+            "request_id", RequestIDFrom(r.Context()),
+        )
+        writeError(w, http.StatusInternalServerError, "internal error")
+    }
+}
 ```
 
 ## Middleware
 
 ### Middleware Signature
 
-Chi middleware uses the standard `func(http.Handler) http.Handler` signature. Apply middleware with `r.Use()`:
+Chi middleware uses the standard `func(http.Handler) http.Handler` signature:
+
+```go
+type Middleware = func(http.Handler) http.Handler
+```
+
+Apply middleware with `r.Use()`:
 
 ```go
 r := chi.NewRouter()
@@ -303,19 +318,7 @@ See the `go-project-init` skill for the complete `main.go` pattern with signal h
 
 ## Health Check Endpoint
 
-```go
-r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
-    writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
-})
-
-r.Get("/readyz", func(w http.ResponseWriter, r *http.Request) {
-    if err := db.PingContext(r.Context()); err != nil {
-        writeError(w, http.StatusServiceUnavailable, "database unavailable")
-        return
-    }
-    writeJSON(w, http.StatusOK, map[string]string{"status": "ready"})
-})
-```
+See the `go-observability` skill for health check patterns (`/healthz` and `/readyz` with dependency checks).
 
 ## Chi Route Groups and Sub-routers
 
@@ -363,154 +366,9 @@ func (h *Handler) Routes() http.Handler {
 
 ## Chi Built-in Middleware
 
-Chi provides useful built-in middleware:
+Chi provides middleware via `github.com/go-chi/chi/v5/middleware`: `RequestID`, `RealIP`, `Logger`, `Recoverer`, `Timeout`, `Compress`, and more. Prefer the custom implementations above when you need structured logging or custom behavior.
 
-```go
-import "github.com/go-chi/chi/v5/middleware"
+## Additional Resources
 
-r := chi.NewRouter()
-r.Use(middleware.RequestID)      // Generates request ID
-r.Use(middleware.RealIP)         // Sets RemoteAddr from X-Real-IP or X-Forwarded-For
-r.Use(middleware.Logger)         // Logs requests
-r.Use(middleware.Recoverer)      // Recovers from panics
-r.Use(middleware.Timeout(60 * time.Second))  // Request timeout
-r.Use(middleware.Compress(5))    // Gzip compression
-```
+- For Swagger/OpenAPI integration with go-swagger (code-first annotations, spec generation, validation middleware), see [swagger-openapi.md](references/swagger-openapi.md)
 
-## Swagger/OpenAPI Integration
-
-Use go-swagger for automatic API documentation and validation.
-
-### Code-First Approach: Annotate Go Code
-
-```go
-// Package classification User API.
-//
-// Documentation for User API
-//
-//	Schemes: http, https
-//	BasePath: /api/v1
-//	Version: 1.0.0
-//	Contact: support@example.com
-//
-//	Consumes:
-//	- application/json
-//
-//	Produces:
-//	- application/json
-//
-// swagger:meta
-package api
-
-// swagger:parameters createUser
-type CreateUserRequest struct {
-	// User data to create
-	// in: body
-	// required: true
-	Body struct {
-		// User's full name
-		// required: true
-		// example: John Doe
-		Name string `json:"name"`
-		// User's email address
-		// required: true
-		// example: john@example.com
-		Email string `json:"email"`
-	}
-}
-
-// swagger:response userResponse
-type UserResponse struct {
-	// in: body
-	Body struct {
-		ID    int64  `json:"id"`
-		Name  string `json:"name"`
-		Email string `json:"email"`
-	}
-}
-
-// swagger:route POST /users users createUser
-//
-// Create a new user
-//
-// Creates a new user in the system with the provided details.
-//
-// responses:
-//   201: userResponse
-//   400: errorResponse
-func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
-	// Implementation
-}
-```
-
-### Generate Swagger Specification
-
-```bash
-# Install go-swagger
-go install github.com/go-swagger/go-swagger/cmd/swagger@latest
-
-# Generate swagger.json from annotations
-swagger generate spec -o ./swagger.json
-
-# Serve Swagger UI
-swagger serve -F swagger ./swagger.json
-```
-
-**Makefile targets:**
-```makefile
-.PHONY: swagger
-swagger:
-	swagger generate spec -o ./swagger.json --scan-models
-
-.PHONY: swagger-serve
-swagger-serve: swagger
-	swagger serve -F swagger ./swagger.json
-```
-
-### Swagger Validation Middleware
-
-Integrate swagger validation with chi router:
-
-```go
-import (
-	"github.com/go-openapi/loads"
-	"github.com/go-openapi/runtime/middleware"
-)
-
-func setupSwagger(r chi.Router) error {
-	// Load swagger spec
-	swaggerSpec, err := loads.Analyzed(SwaggerJSON, "")
-	if err != nil {
-		return err
-	}
-
-	// Serve swagger.json
-	r.Get("/swagger.json", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.Write(SwaggerJSON)
-	})
-
-	// Serve Swagger UI
-	opts := middleware.RedocOpts{SpecURL: "/swagger.json"}
-	r.Handle("/docs", middleware.Redoc(opts, nil))
-
-	return nil
-}
-```
-
-### Decision Framework: Spec-First vs Code-First
-
-| Approach | Spec-First | Code-First (Recommended) |
-|---|---|---|
-| **Workflow** | Write OpenAPI spec → Generate code | Write Go code → Generate spec |
-| **Pros** | Contract-first, language-agnostic | Leverages existing Go code, less duplication |
-| **Cons** | Code generation overhead, synchronization | Annotations can be verbose |
-| **Best For** | Multi-language teams, strict API contracts | Go-only teams, rapid iteration |
-
-**Recommendation**: Use code-first with go-swagger for Go-centric teams. Use spec-first when API contract must be language-agnostic.
-
-## References
-
-- [go-chi router](https://github.com/go-chi/chi)
-- [go-swagger](https://github.com/go-swagger/go-swagger)
-- [OpenAPI Specification](https://swagger.io/specification/)

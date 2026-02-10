@@ -1,23 +1,38 @@
 ---
 name: go-style
 description: >
-  Enforce idiomatic Go style, naming conventions, and formatting.
-  Use when writing, reviewing, or refactoring any Go code.
-  Automatically applies Go proverbs, Google/Uber style guide conventions,
-  and Go Code Review Comments best practices.
+  Idiomatic Go style, naming conventions, formatting with gofmt/goimports, and
+  linting configuration. Use when questions arise about Go naming (package names,
+  variable naming, initialisms), code organization (function length, receiver types,
+  import grouping), interface design conventions, or when setting up golangci-lint.
+  Also use for style-focused code reviews.
 ---
 
 # Go Style
 
 Apply idiomatic Go style and conventions derived from Effective Go, Google's Go Style Guide, Uber's Go Style Guide, and Go Code Review Comments.
 
-## When to Apply
+## Contents
 
-Use this skill automatically when:
-- Writing new Go code
-- Reviewing Go code
-- Refactoring existing Go implementations
-- Naming packages, types, functions, or variables
+- [Go Style](#go-style)
+  - [Contents](#contents)
+  - [Core Principles](#core-principles)
+  - [Formatting](#formatting)
+  - [Naming](#naming)
+    - [Packages](#packages)
+    - [Variables and Functions](#variables-and-functions)
+    - [Interfaces](#interfaces)
+    - [Constants and Errors](#constants-and-errors)
+  - [Struct Design](#struct-design)
+    - [Make the zero value useful](#make-the-zero-value-useful)
+    - [Constructor pattern](#constructor-pattern)
+    - [Functional options for complex configuration](#functional-options-for-complex-configuration)
+  - [Code Organization](#code-organization)
+    - [Function length](#function-length)
+    - [Receiver types](#receiver-types)
+    - [Comments](#comments)
+  - [Anti-Patterns to Flag](#anti-patterns-to-flag)
+  - [Linting Configuration](#linting-configuration)
 
 ## Core Principles
 
@@ -204,50 +219,4 @@ func (s *UserService) FindByID(ctx context.Context, id string) (*User, error) {
 
 ## Linting Configuration
 
-Recommend this baseline `.golangci.yml`:
-
-```yaml
-linters:
-  enable:
-    - errcheck
-    - govet
-    - staticcheck
-    - unused
-    - gosimple
-    - ineffassign
-    - typecheck
-    - gofmt
-    - goimports
-    - revive
-    - misspell
-    - unconvert
-    - gocritic
-    - nilerr
-    - exhaustive
-
-linters-settings:
-  revive:
-    rules:
-      - name: exported
-      - name: var-naming
-      - name: package-comments
-      - name: blank-imports
-      - name: context-as-argument
-      - name: error-return
-      - name: error-naming
-      - name: increment-decrement
-      - name: receiver-naming
-
-issues:
-  exclude-use-default: false
-  max-issues-per-linter: 0
-  max-same-issues: 0
-```
-
-## References
-
-- Effective Go: https://go.dev/doc/effective_go
-- Google Go Style Guide: https://google.github.io/styleguide/go/
-- Uber Go Style Guide: https://github.com/uber-go/guide/blob/master/style.md
-- Go Code Review Comments: https://go.dev/wiki/CodeReviewComments
-- Go Proverbs: https://go-proverbs.github.io/
+Recommend this baseline `.golangci.yml` (a ready-to-use copy is available at [templates/golangci.yml](templates/golangci.yml)).

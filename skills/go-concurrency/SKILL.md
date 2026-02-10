@@ -3,22 +3,14 @@ name: go-concurrency
 description: >
   Safe concurrency patterns with goroutines, channels, and sync primitives.
   Use when implementing concurrent workflows, worker pools, fan-out/fan-in,
-  or when reviewing code with goroutines.
+  rate limiting, pipelines, or when reviewing code with goroutines. Covers
+  mutex, atomic operations, sync.Once, and sync.Pool.
 ---
 
 # Go Concurrency
 
 Don't communicate by sharing memory; share memory by communicating.
 Concurrency is not parallelism. Channels orchestrate; mutexes serialize.
-
-## When to Apply
-
-Use this skill when:
-- Implementing concurrent workflows or pipelines
-- Creating worker pools
-- Managing goroutine lifecycles
-- Using channels or sync primitives
-- Reviewing code that spawns goroutines
 
 ## Decision Framework: Channel vs Mutex
 
@@ -92,6 +84,27 @@ func ProcessItems(ctx context.Context, items []Item, workers int) error {
     return g.Wait()
 }
 ```
+
+### Simpler Alternative: errgroup.SetLimit (Go 1.20+)
+
+When all work items are known upfront, use `SetLimit` instead of a manual worker pool:
+
+```go
+func ProcessItems(ctx context.Context, items []Item, workers int) error {
+    g, ctx := errgroup.WithContext(ctx)
+    g.SetLimit(workers)
+
+    for _, item := range items {
+        g.Go(func() error {
+            return process(ctx, item)
+        })
+    }
+
+    return g.Wait()
+}
+```
+
+Prefer `SetLimit` for simpler fan-out. Use the full worker pool pattern (above) when you need a persistent channel-based pipeline or streaming input.
 
 ## Pattern 3: Fan-Out / Fan-In
 
@@ -182,35 +195,7 @@ func (c *APIClient) TryCall(ctx context.Context, req Request) error {
 }
 ```
 
-## Pattern 6: Protected Shared State (Mutex)
-
-```go
-type Cache struct {
-    mu    sync.RWMutex
-    items map[string]Item
-}
-
-func (c *Cache) Get(key string) (Item, bool) {
-    c.mu.RLock()
-    defer c.mu.RUnlock()
-    item, ok := c.items[key]
-    return item, ok
-}
-
-func (c *Cache) Set(key string, item Item) {
-    c.mu.Lock()
-    defer c.mu.Unlock()
-    c.items[key] = item
-}
-```
-
-**Mutex rules:**
-- Always `defer` the unlock immediately after the lock
-- Use `sync.RWMutex` when reads vastly outnumber writes
-- Never copy a mutex (pass by pointer, embed in struct)
-- Keep critical sections short
-
-## Pattern 7: Once Initialization
+## Pattern 6: Once Initialization
 
 ```go
 type Client struct {
@@ -227,19 +212,64 @@ func (c *Client) getConn() (*grpc.ClientConn, error) {
 }
 ```
 
-## Context Rules
+## Pattern 7: Singleflight (Deduplicate Concurrent Calls)
 
-1. **Context is always the first parameter**: `func Foo(ctx context.Context, ...)`
-2. **Never store context in a struct** — pass it through the call chain
-3. **Respect cancellation** — check `ctx.Done()` in loops and selects
-4. **Set timeouts at boundaries**:
+Use `golang.org/x/sync/singleflight` to suppress duplicate in-flight calls for the same key. Only one call executes; all concurrent callers share the result.
 
 ```go
-ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-defer cancel()
+import "golang.org/x/sync/singleflight"
 
-result, err := client.Call(ctx, req)
+type UserCache struct {
+    group singleflight.Group
+    db    *sql.DB
+}
+
+func (c *UserCache) GetUser(ctx context.Context, id string) (*User, error) {
+    // If 100 goroutines request the same user simultaneously,
+    // only one DB query runs. All 100 get the same result.
+    v, err, _ := c.group.Do(id, func() (any, error) {
+        return c.db.QueryUser(ctx, id)
+    })
+    if err != nil {
+        return nil, err
+    }
+    return v.(*User), nil
+}
 ```
+
+**When to use**: Cache stampede prevention, deduplicating concurrent API/DB calls for the same resource. Pairs well with caching — singleflight deduplicates in-flight requests while the cache deduplicates across time.
+
+## Pattern 8: sync.Pool (Reuse Temporary Objects)
+
+Use `sync.Pool` to reduce allocation pressure by reusing temporary objects across goroutines. The pool is concurrency-safe and objects may be reclaimed by GC at any time.
+
+```go
+var bufPool = sync.Pool{
+    New: func() any {
+        return new(bytes.Buffer)
+    },
+}
+
+func process(data []byte) string {
+    buf := bufPool.Get().(*bytes.Buffer)
+    defer func() {
+        buf.Reset()
+        bufPool.Put(buf)
+    }()
+
+    // Use buf for temporary work
+    buf.Write(data)
+    buf.WriteString("-processed")
+    return buf.String()
+}
+```
+
+**When to use**: High-throughput code that repeatedly allocates and discards similar objects (buffers, structs, slices). Profile first — only add `sync.Pool` when allocation pressure is measurable.
+
+**Rules:**
+- Always `Reset()` before returning to the pool
+- Never store persistent state in pooled objects
+- Never assume `Get()` returns a previously stored object (the pool may be empty)
 
 ## Anti-Patterns
 
@@ -310,32 +340,4 @@ for _, item := range items {
 }
 
 // GOOD: bounded worker pool (see Pattern 2 above)
-```
-
-## Testing Concurrent Code
-
-- Always run tests with `-race`: `go test -race ./...`
-- Use `go.uber.org/goleak` to detect goroutine leaks in tests
-- Use `t.Parallel()` for independent subtests
-- Avoid `time.Sleep` in tests — use channels or sync primitives to synchronize
-
-```go
-func TestWorker(t *testing.T) {
-    done := make(chan struct{})
-    go func() {
-        defer close(done)
-        worker.Run()
-    }()
-
-    // Signal worker to stop
-    worker.Stop()
-
-    // Wait with timeout
-    select {
-    case <-done:
-        // success
-    case <-time.After(5 * time.Second):
-        t.Fatal("worker did not stop within timeout")
-    }
-}
 ```

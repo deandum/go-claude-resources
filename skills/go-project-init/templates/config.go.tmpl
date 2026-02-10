@@ -1,0 +1,28 @@
+# Go service config.go template - adapt for your project
+
+package config
+
+import (
+    "fmt"
+    "time"
+
+    "github.com/kelseyhightower/envconfig"
+)
+
+type Config struct {
+    Addr        string        `default:":8080" split_words:"true"`
+    LogLevel    string        `default:"info" split_words:"true"`
+    DatabaseURL string        `required:"true" split_words:"true" envconfig:"DATABASE_URL"`
+    Timeout     time.Duration `default:"15s" split_words:"true"`
+}
+
+// Load reads configuration from environment variables with the given prefix.
+// For example, if prefix is "MYAPP", it will read MYAPP_ADDR, MYAPP_DATABASE_URL, etc.
+func Load(prefix string) (*Config, error) {
+    var cfg Config
+    if err := envconfig.Process(prefix, &cfg); err != nil {
+        return nil, fmt.Errorf("processing config: %w", err)
+    }
+
+    return &cfg, nil
+}

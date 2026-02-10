@@ -3,21 +3,27 @@ name: go-interface-design
 description: >
   Interface design patterns following Go idioms: accept interfaces, return structs,
   consumer-side definition, and interface segregation. Use when designing APIs,
-  creating testable code, or reviewing interface abstractions.
+  creating testable code, choosing between generics and interfaces, or reviewing
+  interface abstractions.
 ---
 
 # Go Interface Design
 
 The bigger the interface, the weaker the abstraction. Accept interfaces, return concrete types.
 
-## When to Apply
+## Contents
 
-Use this skill when:
-- Designing function signatures and APIs
-- Creating abstractions for testing (mocks, fakes)
-- Reviewing interface definitions (too big? too early?)
-- Deciding between interfaces and generics
-- Implementing dependency injection patterns
+- [Decision Framework: Should This Be an Interface?](#decision-framework-should-this-be-an-interface)
+- [Pattern 1: Accept Interfaces, Return Concrete Types](#pattern-1-accept-interfaces-return-concrete-types)
+- [Pattern 2: Interface Segregation (Small Interfaces)](#pattern-2-interface-segregation-small-interfaces)
+- [Pattern 3: Standard Library Interfaces](#pattern-3-standard-library-interfaces)
+- [Pattern 4: Interface Satisfaction Verification](#pattern-4-interface-satisfaction-verification)
+- [Pattern 5: Empty Interface vs Generics](#pattern-5-empty-interface-vs-generics)
+- [Decision Framework: Interface vs Generics vs Concrete](#decision-framework-interface-vs-generics-vs-concrete)
+- [Pattern 6: Mock-Friendly Interface Design](#pattern-6-mock-friendly-interface-design)
+- [Pattern 7: Embedded Interfaces](#pattern-7-embedded-interfaces)
+- [Interface Naming Conventions](#interface-naming-conventions)
+- [Additional Resources](#additional-resources)
 
 ## Decision Framework: Should This Be an Interface?
 
@@ -135,20 +141,15 @@ func GenerateReport(w io.Writer, data *Report) error {
 	return encoder.Encode(data)
 }
 
-// Usage with different writers
-func Example() {
-	// Write to file
-	f, _ := os.Create("report.json")
-	defer f.Close()
-	GenerateReport(f, report)
+// Works with any io.Writer: files, buffers, HTTP responses
+f, _ := os.Create("report.json")
+defer f.Close()
+GenerateReport(f, &report)
 
-	// Write to buffer
-	var buf bytes.Buffer
-	GenerateReport(&buf, report)
+var buf bytes.Buffer
+GenerateReport(&buf, &report)
 
-	// Write to HTTP response
-	GenerateReport(w http.ResponseWriter, report)
-}
+// In an HTTP handler: GenerateReport(w, &report)
 ```
 
 **Common stdlib interfaces:**
@@ -215,6 +216,10 @@ type Cache[T any] struct {
 	items map[string]T
 }
 
+func NewCache[T any]() *Cache[T] {
+	return &Cache[T]{items: make(map[string]T)}
+}
+
 func (c *Cache[T]) Get(key string) (T, bool) {
 	item, ok := c.items[key]
 	return item, ok
@@ -225,14 +230,14 @@ func (c *Cache[T]) Set(key string, value T) {
 }
 
 // Usage: type-safe cache
-cache := &Cache[*User]{}
+cache := NewCache[*User]()
 cache.Set("alice", &User{Name: "Alice"})
 user, ok := cache.Get("alice") // Returns *User, not any
 ```
 
 ## Decision Framework: Interface vs Generics vs Concrete
 
-| Use Interface | Use Generics (Go 1.18+) | Use Concrete Type |
+| Use Interface | Use Generics | Use Concrete Type |
 |---|---|---|
 | Multiple implementations exist | Type-safe containers needed | Single implementation |
 | Behavior abstraction needed | Algorithms work across types | No abstraction needed |
@@ -241,45 +246,7 @@ user, ok := cache.Get("alice") // Returns *User, not any
 
 **Decision Rule**: Default to concrete types. Add interface when testing or multiple implementations needed. Use generics for type-safe data structures.
 
-## Pattern 6: Type Assertions and Type Switches
-
-Safely work with interface values.
-
-```go
-// Type assertion
-func ProcessValue(v any) error {
-	// Check type with comma-ok idiom
-	if str, ok := v.(string); ok {
-		fmt.Println("String:", str)
-		return nil
-	}
-
-	// Type switch for multiple types
-	switch val := v.(type) {
-	case string:
-		fmt.Println("String:", val)
-	case int, int64:
-		fmt.Println("Integer:", val)
-	case *User:
-		fmt.Printf("User: %s (%s)\n", val.Name, val.Email)
-	case io.Reader:
-		// Can use interface type too
-		data, _ := io.ReadAll(val)
-		fmt.Println("Reader data:", string(data))
-	default:
-		return fmt.Errorf("unsupported type: %T", v)
-	}
-	return nil
-}
-```
-
-**Rules:**
-- Use comma-ok idiom for single type assertion
-- Use type switch for multiple type checks
-- Include default case in type switches
-- Avoid type assertions in performance-critical code
-
-## Pattern 7: Mock-Friendly Interface Design
+## Pattern 6: Mock-Friendly Interface Design
 
 Design interfaces that are easy to mock for testing.
 
@@ -323,198 +290,40 @@ func TestOrderService_PlaceOrder(t *testing.T) {
 
 	svc := &OrderService{payments: mock}
 	err := svc.PlaceOrder(context.Background(), &Order{Total: 5000})
-	assert.NoError(t, err)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 }
 ```
 
 **Rules:**
 - Keep interfaces small (easier to mock)
 - Pass interfaces via struct fields or parameters
-- Consider testify/mock or gomock for complex mocks
+- Use function-based mocks (see `go-testing` skill for patterns)
 - Mock only external dependencies (databases, APIs, payment processors)
 
-## Pattern 8: Embedded Interfaces
+## Pattern 7: Embedded Interfaces
 
-Compose interfaces from smaller interfaces.
+Compose interfaces from smaller interfaces (see also Pattern 2 for domain-specific composition).
 
 ```go
-// Small interfaces
-type Reader interface {
-	Read(ctx context.Context, key string) ([]byte, error)
-}
-
-type Writer interface {
-	Write(ctx context.Context, key string, value []byte) error
-}
-
-type Closer interface {
-	Close() error
-}
-
-// Composed interface
 type Store interface {
 	Reader
 	Writer
 	Closer
 }
 
-// Implementation satisfies all embedded interfaces
-type FileStore struct {
-	file *os.File
-}
-
-func (f *FileStore) Read(ctx context.Context, key string) ([]byte, error) {
-	// Implementation
-	return nil, nil
-}
-
-func (f *FileStore) Write(ctx context.Context, key string, value []byte) error {
-	// Implementation
-	return nil
-}
-
-func (f *FileStore) Close() error {
-	return f.file.Close()
-}
-
-// Verify implements all interfaces
+// Implementations satisfy all embedded interfaces
 var _ Store = (*FileStore)(nil)
 var _ Reader = (*FileStore)(nil)
-var _ Writer = (*FileStore)(nil)
-```
-
-## Anti-Patterns
-
-### Premature interface abstraction
-
-```go
-// BAD: Interface created "just in case"
-type UserRepository interface {
-	FindByID(ctx context.Context, id int64) (*User, error)
-}
-
-type MySQLUserRepository struct{} // Only implementation
-
-// GOOD: Start with concrete type, add interface when second implementation appears
-type UserRepository struct {
-	db *sqlx.DB
-}
-
-func (r *UserRepository) FindByID(ctx context.Context, id int64) (*User, error) {
-	// Implementation
-	return nil, nil
-}
-```
-
-### Defining interface with implementation
-
-```go
-// BAD: Interface defined in provider package
-package mysql
-
-type Repository interface { // Wrong package!
-	FindByID(ctx context.Context, id int64) (*User, error)
-}
-
-type MySQLRepository struct{}
-
-// GOOD: Interface defined at consumer side
-package service
-
-type UserRepository interface { // Consumer defines interface
-	FindByID(ctx context.Context, id int64) (*User, error)
-}
-
-type UserService struct {
-	repo UserRepository // Accepts any implementation
-}
-```
-
-### Returning interface instead of concrete type
-
-```go
-// BAD: Returning interface reduces flexibility
-func NewUserService() UserRepository { // Returns interface
-	return &MySQLUserRepository{}
-}
-
-// GOOD: Return concrete type, accept interface
-func NewUserService(repo UserRepository) *UserService { // Accepts interface
-	return &UserService{repo: repo} // Returns concrete type
-}
-```
-
-### Interface with too many methods
-
-```go
-// BAD: God interface
-type Service interface {
-	GetUser(id int64) (*User, error)
-	CreateUser(user *User) error
-	UpdateUser(user *User) error
-	DeleteUser(id int64) error
-	ListUsers(limit int) ([]*User, error)
-	SendEmail(to, subject, body string) error
-	LogAction(action string) error
-}
-
-// GOOD: Separate interfaces by concern
-type UserManager interface {
-	GetUser(id int64) (*User, error)
-	CreateUser(user *User) error
-}
-
-type Notifier interface {
-	SendEmail(to, subject, body string) error
-}
-
-type Logger interface {
-	LogAction(action string) error
-}
-```
-
-### Using interface{} when specific type known
-
-```go
-// BAD: Losing type safety
-func Calculate(a, b interface{}) interface{} {
-	return a.(int) + b.(int) // Runtime panic risk
-}
-
-// GOOD: Use concrete types or generics
-func Calculate(a, b int) int {
-	return a + b
-}
-
-// Or with generics for multiple numeric types
-func Add[T int | int64 | float64](a, b T) T {
-	return a + b
-}
 ```
 
 ## Interface Naming Conventions
 
-```go
-// Single-method interfaces: use -er suffix
-type Reader interface { Read(p []byte) (n int, err error) }
-type Writer interface { Write(p []byte) (n int, err error) }
-type Closer interface { Close() error }
-type Stringer interface { String() string }
+- Single-method interfaces: `-er` suffix (`Reader`, `Writer`, `Closer`, `Stringer`)
+- Multi-method interfaces: descriptive noun (`FileSystem`, `UserRepository`)
+- Avoid redundant `Interface` suffix: `UserRepository` not `UserRepositoryInterface`
 
-// Multi-method interfaces: descriptive noun
-type FileSystem interface {
-	Open(name string) (File, error)
-	Create(name string) (File, error)
-	Remove(name string) error
-}
+## Additional Resources
 
-// Avoid redundant "Interface" suffix
-type UserRepository interface {} // Good
-type UserRepositoryInterface interface {} // Bad
-```
-
-## References
-
-- [Effective Go: Interfaces](https://go.dev/doc/effective_go#interfaces)
-- [Go Proverbs: Interface Segregation](https://go-proverbs.github.io/)
-- [Uber Go Style Guide: Interfaces](https://github.com/uber-go/guide/blob/master/style.md#interfaces)
+- For common interface anti-patterns (premature abstraction, wrong package, returning interfaces), see [anti-patterns.md](references/anti-patterns.md)

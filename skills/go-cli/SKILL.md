@@ -1,24 +1,14 @@
 ---
 name: go-cli
 description: >
-  CLI tool development with Cobra, flag parsing, subcommands, configuration precedence,
-  and output formatting. Use when building command-line tools, designing CLI UX,
-  or implementing configuration management.
+  CLI tool development with Cobra, Viper, and stdlib flag. Covers flag parsing,
+  subcommands, configuration precedence, and output formatting. Use when building
+  command-line tools, designing CLI UX, or implementing configuration management.
 ---
 
 # Go CLI Development
 
 Great CLIs are predictable, composable, and fail fast with clear error messages.
-
-## When to Apply
-
-Use this skill when:
-- Building command-line tools with Cobra/pflag
-- Designing subcommand structure (git-style CLIs)
-- Implementing configuration precedence (flags, env vars, files)
-- Adding output formatting (human-readable, JSON, tables)
-- Handling signals for graceful shutdown
-- Testing CLI commands and flag parsing
 
 ## Decision Framework: Cobra vs stdlib flag
 
@@ -32,6 +22,38 @@ Use this skill when:
 | **Recommendation** | Simple CLIs (1 command) | **Multi-command CLIs** |
 
 **Decision Rule**: Use stdlib `flag` for single-command tools. Use Cobra for git-style multi-command CLIs.
+
+### stdlib flag Example (Single-Command CLI)
+
+```go
+package main
+
+import (
+	"flag"
+	"fmt"
+	"os"
+)
+
+func main() {
+	var (
+		output  = flag.String("output", "table", "Output format: table, json")
+		verbose = flag.Bool("verbose", false, "Enable verbose output")
+	)
+	flag.Parse()
+
+	args := flag.Args()
+	if len(args) == 0 {
+		fmt.Fprintln(os.Stderr, "error: filename required")
+		flag.Usage()
+		os.Exit(2)
+	}
+
+	if err := run(args[0], *output, *verbose); err != nil {
+		fmt.Fprintln(os.Stderr, "error:", err)
+		os.Exit(1)
+	}
+}
+```
 
 ## Pattern 1: Cobra Project Structure
 
@@ -124,7 +146,7 @@ func initConfig() {
 **Rules:**
 - Root command defines global flags (persistent)
 - `PersistentFlags()` available to all subcommands
-- `init()` runs before command execution
+- `init()` is the standard Cobra convention for command registration — this is an accepted exception to the `go-style` anti-pattern against `init()` functions
 - `Execute()` called from main.go
 
 ## Pattern 3: Subcommands with Flags
@@ -171,13 +193,6 @@ func init() {
 	getCmd.MarkFlagRequired("output")
 }
 ```
-
-**Arg Validators:**
-- `cobra.ExactArgs(n)` - Exactly n arguments
-- `cobra.MinimumNArgs(n)` - At least n arguments
-- `cobra.MaximumNArgs(n)` - At most n arguments
-- `cobra.RangeArgs(min, max)` - Between min and max
-- `cobra.NoArgs` - No arguments allowed
 
 ## Pattern 4: Configuration Precedence
 
@@ -240,143 +255,21 @@ api-url: https://staging.api.com
 timeout: 60
 ```
 
-## Pattern 5: Output Formatting
+## Pattern 5: Signal Handling for Graceful Shutdown
 
-Support multiple output formats for machine and human consumption.
-
-```go
-package cmd
-
-import (
-	"encoding/json"
-	"fmt"
-	"os"
-
-	"github.com/olekukonko/tablewriter"
-	"gopkg.in/yaml.v3"
-)
-
-type Resource struct {
-	ID     string `json:"id" yaml:"id"`
-	Name   string `json:"name" yaml:"name"`
-	Status string `json:"status" yaml:"status"`
-}
-
-func outputResources(resources []Resource, format string) error {
-	switch format {
-	case "json":
-		return outputJSON(resources)
-	case "yaml":
-		return outputYAML(resources)
-	case "table":
-		return outputTable(resources)
-	default:
-		return fmt.Errorf("unsupported format: %s", format)
-	}
-}
-
-func outputJSON(resources []Resource) error {
-	encoder := json.NewEncoder(os.Stdout)
-	encoder.SetIndent("", "  ")
-	return encoder.Encode(resources)
-}
-
-func outputYAML(resources []Resource) error {
-	encoder := yaml.NewEncoder(os.Stdout)
-	return encoder.Encode(resources)
-}
-
-func outputTable(resources []Resource) error {
-	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader([]string{"ID", "Name", "Status"})
-
-	for _, r := range resources {
-		table.Append([]string{r.ID, r.Name, r.Status})
-	}
-
-	table.Render()
-	return nil
-}
-```
-
-**Output Formatting Libraries:**
-- Tables: `github.com/olekukonko/tablewriter`
-- Colors: `github.com/fatih/color`
-- Spinners: `github.com/briandowns/spinner`
-- Progress bars: `github.com/schollz/progressbar/v3`
-
-## Pattern 6: Signal Handling for Graceful Shutdown
+For long-running CLI commands, use `signal.NotifyContext` for clean shutdown:
 
 ```go
-package cmd
-
-import (
-	"context"
-	"fmt"
-	"os"
-	"os/signal"
-	"syscall"
-	"time"
-
-	"github.com/spf13/cobra"
-)
-
 var runCmd = &cobra.Command{
 	Use:   "run",
 	Short: "Run long-running process",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return runWithGracefulShutdown()
+		ctx, stop := signal.NotifyContext(context.Background(),
+			syscall.SIGINT, syscall.SIGTERM)
+		defer stop()
+
+		return doWork(ctx) // Pass ctx; respect ctx.Done() in loops
 	},
-}
-
-func runWithGracefulShutdown() error {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	// Setup signal handling
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
-
-	// Start work in goroutine
-	errChan := make(chan error, 1)
-	go func() {
-		errChan <- doWork(ctx)
-	}()
-
-	// Wait for completion or signal
-	select {
-	case err := <-errChan:
-		return err
-	case sig := <-sigChan:
-		fmt.Fprintf(os.Stderr, "\nReceived signal %v, shutting down gracefully...\n", sig)
-		cancel() // Cancel context
-
-		// Wait for goroutine to finish (with timeout)
-		select {
-		case <-errChan:
-			fmt.Fprintln(os.Stderr, "Shutdown complete")
-		case <-time.After(10 * time.Second):
-			fmt.Fprintln(os.Stderr, "Shutdown timed out")
-			return fmt.Errorf("shutdown timeout")
-		}
-	}
-
-	return nil
-}
-
-func doWork(ctx context.Context) error {
-	ticker := time.NewTicker(time.Second)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ticker.C:
-			fmt.Println("Working...")
-		case <-ctx.Done():
-			fmt.Println("Work canceled")
-			return nil
-		}
-	}
 }
 ```
 
@@ -384,9 +277,9 @@ func doWork(ctx context.Context) error {
 - Listen for SIGINT (Ctrl+C) and SIGTERM (docker stop)
 - Use context for cancellation propagation
 - Implement shutdown timeout to prevent hanging
-- Communicate shutdown state to user
+- See the `go-project-init` skill for the full server shutdown pattern with timeout
 
-## Pattern 7: Exit Codes
+## Pattern 6: Exit Codes
 
 Use standard exit codes to communicate command status.
 
@@ -424,118 +317,6 @@ func Execute() {
 		fmt.Fprintln(os.Stderr, "Error:", err)
 		os.Exit(code)
 	}
-}
-```
-
-**Standard Exit Codes:**
-- `0`: Success
-- `1`: General error
-- `2`: Usage error (invalid flags, arguments)
-- `126`: Command cannot execute
-- `127`: Command not found
-- `128+N`: Fatal error signal N (e.g., 130 = SIGINT)
-
-## Pattern 8: Testing CLI Commands
-
-```go
-// cmd/get_test.go
-package cmd
-
-import (
-	"bytes"
-	"testing"
-
-	"github.com/spf13/cobra"
-	"github.com/stretchr/testify/assert"
-)
-
-func executeCommand(root *cobra.Command, args ...string) (string, error) {
-	buf := new(bytes.Buffer)
-	root.SetOut(buf)
-	root.SetErr(buf)
-	root.SetArgs(args)
-
-	err := root.Execute()
-	return buf.String(), err
-}
-
-func TestGetCommand(t *testing.T) {
-	t.Run("success", func(t *testing.T) {
-		output, err := executeCommand(rootCmd, "get", "user", "--output", "json")
-		assert.NoError(t, err)
-		assert.Contains(t, output, "\"id\":")
-	})
-
-	t.Run("missing argument", func(t *testing.T) {
-		_, err := executeCommand(rootCmd, "get")
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "accepts 1 arg(s)")
-	})
-
-	t.Run("invalid flag", func(t *testing.T) {
-		_, err := executeCommand(rootCmd, "get", "user", "--invalid")
-		assert.Error(t, err)
-	})
-}
-```
-
-**Rules:**
-- Capture stdout/stderr with buffers
-- Test valid and invalid arguments
-- Test flag parsing
-- Test error messages
-- Use `SetArgs()` to simulate CLI arguments
-
-## Pattern 9: Shell Completion
-
-Generate shell completion scripts for better UX.
-
-```go
-// cmd/completion.go
-package cmd
-
-import (
-	"os"
-
-	"github.com/spf13/cobra"
-)
-
-var completionCmd = &cobra.Command{
-	Use:   "completion [bash|zsh|fish|powershell]",
-	Short: "Generate shell completion script",
-	Long: `To load completions:
-
-Bash:
-  $ source <(mycli completion bash)
-  $ mycli completion bash > /etc/bash_completion.d/mycli
-
-Zsh:
-  $ mycli completion zsh > "${fpath[1]}/_mycli"
-
-Fish:
-  $ mycli completion fish | source
-  $ mycli completion fish > ~/.config/fish/completions/mycli.fish
-`,
-	Args:              cobra.ExactArgs(1),
-	ValidArgs:         []string{"bash", "zsh", "fish", "powershell"},
-	DisableFlagsInUseLine: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		switch args[0] {
-		case "bash":
-			return cmd.Root().GenBashCompletion(os.Stdout)
-		case "zsh":
-			return cmd.Root().GenZshCompletion(os.Stdout)
-		case "fish":
-			return cmd.Root().GenFishCompletion(os.Stdout, true)
-		case "powershell":
-			return cmd.Root().GenPowerShellCompletion(os.Stdout)
-		}
-		return nil
-	},
-}
-
-func init() {
-	rootCmd.AddCommand(completionCmd)
 }
 ```
 
@@ -625,41 +406,8 @@ func run(ctx context.Context) error {
 }
 ```
 
-## Help Text Best Practices
+## Additional Resources
 
-```go
-var exampleCmd = &cobra.Command{
-	Use:   "deploy [flags] <environment>",
-	Short: "Deploy application to environment",
-	Long: `Deploy the application to the specified environment.
-
-The deployment process includes:
-- Building the application
-- Running tests
-- Deploying to target environment
-- Running smoke tests`,
-	Example: `  # Deploy to staging
-  mycli deploy staging
-
-  # Deploy with specific version
-  mycli deploy production --version v1.2.3
-
-  # Dry run deployment
-  mycli deploy production --dry-run`,
-	Args: cobra.ExactArgs(1),
-	RunE: runDeploy,
-}
-```
-
-**Best Practices:**
-- Clear, concise `Short` description
-- Detailed `Long` description with bullets
-- Provide `Example` with common use cases
-- Use `Use` to show required vs optional args
-- Include default values in flag descriptions
-
-## References
-
-- [Cobra Documentation](https://github.com/spf13/cobra)
-- [Viper Configuration](https://github.com/spf13/viper)
-- [pflag (POSIX flags)](https://github.com/spf13/pflag)
+- For output formatting patterns (tables, colors, progress), see [output-formatting.md](references/output-formatting.md)
+- For testing CLI commands, see [testing-commands.md](references/testing-commands.md)
+- For shell completion setup, see [shell-completion.md](references/shell-completion.md)

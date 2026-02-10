@@ -10,15 +10,6 @@ description: >
 
 Always use context-aware methods. Close rows. Defer transaction rollback. Parameterize queries.
 
-## When to Apply
-
-Use this skill when:
-- Connecting to MySQL databases with sqlx
-- Implementing repository patterns for data access
-- Managing transactions and connection pooling
-- Testing database code with go-sqlmock
-- Reviewing MySQL query patterns and error handling
-
 ## Decision Framework: sqlx vs database/sql
 
 | Feature | database/sql | sqlx |
@@ -91,184 +82,36 @@ func Connect(cfg Config) (*sqlx.DB, error) {
 - `ConnMaxLifetime`: Prevents stale connections
 - `ConnMaxIdleTime`: Cleans up idle connections
 
-## Pattern 2: Query Patterns with sqlx
+## Pattern 2: sqlx Query Patterns
 
-Use `Get` for single rows, `Select` for multiple rows.
+Tag struct fields with `db:"column_name"` for automatic scanning:
 
 ```go
-package repository
-
-import (
-	"context"
-	"database/sql"
-	"fmt"
-
-	"github.com/jmoiron/sqlx"
-)
-
 type User struct {
 	ID        int64     `db:"id"`
 	Name      string    `db:"name"`
 	Email     string    `db:"email"`
 	CreatedAt time.Time `db:"created_at"`
 }
-
-type UserRepository struct {
-	db *sqlx.DB
-}
-
-// Get: Single row query (returns sql.ErrNoRows if not found)
-func (r *UserRepository) FindByID(ctx context.Context, id int64) (*User, error) {
-	var user User
-	err := r.db.GetContext(ctx, &user,
-		"SELECT id, name, email, created_at FROM users WHERE id = ?", id)
-
-	if err == sql.ErrNoRows {
-		return nil, fmt.Errorf("user not found: %w", err)
-	}
-	if err != nil {
-		return nil, fmt.Errorf("query user: %w", err)
-	}
-
-	return &user, nil
-}
-
-// Select: Multiple rows query
-func (r *UserRepository) FindByEmail(ctx context.Context, email string) ([]*User, error) {
-	var users []*User
-	err := r.db.SelectContext(ctx, &users,
-		"SELECT id, name, email, created_at FROM users WHERE email LIKE ?",
-		"%"+email+"%")
-
-	if err != nil {
-		return nil, fmt.Errorf("query users: %w", err)
-	}
-
-	return users, nil
-}
-
-// Exec: INSERT/UPDATE/DELETE operations
-func (r *UserRepository) Create(ctx context.Context, user *User) error {
-	result, err := r.db.ExecContext(ctx,
-		"INSERT INTO users (name, email, created_at) VALUES (?, ?, ?)",
-		user.Name, user.Email, time.Now())
-
-	if err != nil {
-		return fmt.Errorf("insert user: %w", err)
-	}
-
-	id, _ := result.LastInsertId()
-	user.ID = id
-	return nil
-}
 ```
 
-**Rules:**
-- Use `GetContext` for single row (errors if 0 or >1 rows)
-- Use `SelectContext` for multiple rows (returns empty slice if 0 rows)
-- Use `ExecContext` for mutations (INSERT/UPDATE/DELETE)
-- Always use context-aware methods (*Context variants)
-- Tag struct fields with `db:"column_name"`
+**Method selection:**
 
-## Pattern 3: Named Queries with Struct Binding
-
-Use named parameters for cleaner code with many parameters.
-
-```go
-type UpdateUserParams struct {
-	ID    int64  `db:"id"`
-	Name  string `db:"name"`
-	Email string `db:"email"`
-}
-
-func (r *UserRepository) Update(ctx context.Context, params UpdateUserParams) error {
-	query := `UPDATE users SET name = :name, email = :email WHERE id = :id`
-
-	result, err := r.db.NamedExecContext(ctx, query, params)
-	if err != nil {
-		return fmt.Errorf("update user: %w", err)
-	}
-
-	rows, _ := result.RowsAffected()
-	if rows == 0 {
-		return fmt.Errorf("user not found: %w", sql.ErrNoRows)
-	}
-
-	return nil
-}
-
-// Named query (SELECT with named parameters)
-func (r *UserRepository) FindByNameAndEmail(ctx context.Context, name, email string) ([]*User, error) {
-	query := `SELECT id, name, email, created_at FROM users
-	          WHERE name = :name AND email = :email`
-
-	params := map[string]interface{}{
-		"name":  name,
-		"email": email,
-	}
-
-	var users []*User
-	rows, err := r.db.NamedQueryContext(ctx, query, params)
-	if err != nil {
-		return nil, fmt.Errorf("query users: %w", err)
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var user User
-		if err := rows.StructScan(&user); err != nil {
-			return nil, fmt.Errorf("scan user: %w", err)
-		}
-		users = append(users, &user)
-	}
-
-	return users, nil
-}
-```
+| Method | Use When | Notes |
+|---|---|---|
+| `GetContext` | Single row | Returns `sql.ErrNoRows` if not found |
+| `SelectContext` | Multiple rows | Returns empty slice if 0 rows |
+| `ExecContext` | INSERT/UPDATE/DELETE | Returns `sql.Result` for LastInsertId/RowsAffected |
+| `NamedExecContext` | Mutations with many params | Uses `:paramName` syntax with struct or map |
+| `NamedQueryContext` | SELECT with many params | Returns rows iterator, must `defer rows.Close()` |
 
 **Rules:**
-- Use `:paramName` syntax in query
-- Pass struct or map with matching field names
-- Use `NamedExecContext` for mutations
-- Use `NamedQueryContext` when you need to iterate rows
+- Always use `*Context` variants (never `Query`, always `QueryContext`)
+- Handle `sql.ErrNoRows` explicitly for single-row lookups
+- For IN clauses: use `sqlx.In()` to expand, then `db.Rebind()` for MySQL placeholders
+- Check for empty slice before IN queries
 
-## Pattern 4: IN Clause Handling
-
-Use `sqlx.In()` to expand slices into IN clauses.
-
-```go
-import "github.com/jmoiron/sqlx"
-
-func (r *UserRepository) FindByIDs(ctx context.Context, ids []int64) ([]*User, error) {
-	if len(ids) == 0 {
-		return []*User{}, nil
-	}
-
-	query := "SELECT id, name, email, created_at FROM users WHERE id IN (?)"
-
-	// Expand IN clause and rebind for MySQL
-	query, args, err := sqlx.In(query, ids)
-	if err != nil {
-		return nil, fmt.Errorf("expand IN clause: %w", err)
-	}
-	query = r.db.Rebind(query) // Convert ? to ? (MySQL uses ?, not $1)
-
-	var users []*User
-	if err := r.db.SelectContext(ctx, &users, query, args...); err != nil {
-		return nil, fmt.Errorf("query users: %w", err)
-	}
-
-	return users, nil
-}
-```
-
-**Rules:**
-- Check for empty slice before query
-- Use `sqlx.In()` to expand slice
-- Use `db.Rebind()` to convert placeholders to MySQL format
-- Pass `args...` (spread) to query
-
-## Pattern 5: Transaction Management
+## Pattern 3: Transaction Management
 
 Always defer rollback. Commit explicitly on success.
 
@@ -319,7 +162,7 @@ tx, err := r.db.BeginTxx(ctx, &sql.TxOptions{
 - Use `ExecContext`, `GetContext`, `SelectContext` on tx
 - Commit explicitly on success path
 
-## Pattern 6: Repository Pattern with Dependency Injection
+## Pattern 4: Repository Pattern with Dependency Injection
 
 Wrap database in repository struct for clean architecture.
 
@@ -334,19 +177,19 @@ func NewUserRepository(db *sqlx.DB) *UserRepository {
 	return &UserRepository{db: db}
 }
 
-// Interface for testing (defined at consumer side, not here)
+// Service defines the interface it needs (consumer-side)
+package service
+
+// UserFinder is defined where it's consumed, not alongside the implementation.
 type UserFinder interface {
 	FindByID(ctx context.Context, id int64) (*User, error)
 }
 
-// Service depends on interface
-package service
-
 type UserService struct {
-	repo repository.UserFinder // Interface, not concrete type
+	repo UserFinder
 }
 
-func NewUserService(repo repository.UserFinder) *UserService {
+func NewUserService(repo UserFinder) *UserService {
 	return &UserService{repo: repo}
 }
 ```
@@ -354,10 +197,10 @@ func NewUserService(repo repository.UserFinder) *UserService {
 **Rules:**
 - Repository wraps `*sqlx.DB`
 - Constructor accepts `*sqlx.DB` parameter
-- Return concrete repository type, not interface
+- Define interfaces at the consumer (service) side, not the provider (repository) side
 - Consumer defines interface for testing
 
-## Pattern 7: Error Handling (MySQL-Specific)
+## Pattern 5: Error Handling (MySQL-Specific)
 
 Handle MySQL-specific errors like duplicate keys and foreign key violations.
 
@@ -413,110 +256,6 @@ func (r *UserRepository) FindByEmail(ctx context.Context, email string) (*User, 
 - `1452`: Foreign key constraint fails
 - `1048`: Column cannot be null
 
-## Pattern 8: Testing with go-sqlmock
-
-Mock database interactions without real database.
-
-```go
-package repository_test
-
-import (
-	"context"
-	"database/sql"
-	"testing"
-
-	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/jmoiron/sqlx"
-	"github.com/stretchr/testify/assert"
-)
-
-func TestUserRepository_FindByID(t *testing.T) {
-	// Create mock DB
-	mockDB, mock, err := sqlmock.New()
-	assert.NoError(t, err)
-	defer mockDB.Close()
-
-	db := sqlx.NewDb(mockDB, "mysql")
-	repo := NewUserRepository(db)
-
-	t.Run("success", func(t *testing.T) {
-		rows := sqlmock.NewRows([]string{"id", "name", "email", "created_at"}).
-			AddRow(1, "Alice", "alice@example.com", time.Now())
-
-		mock.ExpectQuery("SELECT (.+) FROM users WHERE id = ?").
-			WithArgs(1).
-			WillReturnRows(rows)
-
-		user, err := repo.FindByID(context.Background(), 1)
-		assert.NoError(t, err)
-		assert.Equal(t, "Alice", user.Name)
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-
-	t.Run("not found", func(t *testing.T) {
-		mock.ExpectQuery("SELECT (.+) FROM users WHERE id = ?").
-			WithArgs(999).
-			WillReturnError(sql.ErrNoRows)
-
-		_, err := repo.FindByID(context.Background(), 999)
-		assert.ErrorIs(t, err, sql.ErrNoRows)
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-}
-
-func TestUserRepository_Create(t *testing.T) {
-	mockDB, mock, _ := sqlmock.New()
-	defer mockDB.Close()
-
-	db := sqlx.NewDb(mockDB, "mysql")
-	repo := NewUserRepository(db)
-
-	mock.ExpectExec("INSERT INTO users").
-		WithArgs("Alice", "alice@example.com", sqlmock.AnyArg()).
-		WillReturnResult(sqlmock.NewResult(1, 1))
-
-	user := &User{Name: "Alice", Email: "alice@example.com"}
-	err := repo.Create(context.Background(), user)
-
-	assert.NoError(t, err)
-	assert.Equal(t, int64(1), user.ID)
-	assert.NoError(t, mock.ExpectationsWereMet())
-}
-```
-
-**Rules:**
-- Use `sqlmock.New()` to create mock DB
-- Use `sqlx.NewDb()` to wrap mock
-- Set expectations before calling repository method
-- Use `mock.ExpectationsWereMet()` to verify all expectations called
-- Use `sqlmock.AnyArg()` for dynamic values like timestamps
-
-## Migration Strategies (Brief)
-
-Use golang-migrate for schema versioning.
-
-```bash
-# Install
-go install -tags 'mysql' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
-
-# Create migration
-migrate create -ext sql -dir db/migrations -seq create_users_table
-
-# Run migrations
-migrate -path db/migrations -database "mysql://user:pass@tcp(localhost:3306)/db" up
-```
-
-**Migration file example** (`000001_create_users_table.up.sql`):
-```sql
-CREATE TABLE users (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    email VARCHAR(255) NOT NULL UNIQUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_email (email)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-```
-
 ## Decision Framework: When to Use Transactions
 
 | Use Transaction | No Transaction Needed |
@@ -527,106 +266,6 @@ CREATE TABLE users (
 | Cross-table updates that must succeed together | Idempotent operations |
 
 **Decision Rule**: If operation modifies multiple rows/tables and partial success would corrupt data, use transaction.
-
-## Anti-Patterns
-
-### Not using context-aware methods
-
-```go
-// BAD: No context propagation
-rows, err := db.Query("SELECT * FROM users")
-
-// GOOD: Context propagates cancellation
-rows, err := db.QueryContext(ctx, "SELECT * FROM users")
-```
-
-### Forgetting to close rows
-
-```go
-// BAD: Resource leak
-rows, _ := db.QueryContext(ctx, "SELECT * FROM users")
-for rows.Next() {
-	// ...
-}
-
-// GOOD: Always defer close
-rows, err := db.QueryContext(ctx, "SELECT * FROM users")
-if err != nil {
-	return err
-}
-defer rows.Close() // Must close rows
-
-for rows.Next() {
-	// ...
-}
-```
-
-### Transaction without defer rollback
-
-```go
-// BAD: Rollback only on error path
-tx, _ := db.BeginTxx(ctx, nil)
-if err := doWork(tx); err != nil {
-	tx.Rollback()
-	return err
-}
-tx.Commit()
-
-// GOOD: Defer rollback (safe after commit)
-tx, _ := db.BeginTxx(ctx, nil)
-defer tx.Rollback() // No-op if committed
-
-if err := doWork(tx); err != nil {
-	return err
-}
-return tx.Commit()
-```
-
-### Hardcoded connection strings
-
-```go
-// BAD: Secrets in code
-db, _ := sqlx.Connect("mysql", "root:password123@tcp(localhost:3306)/mydb")
-
-// GOOD: Load from environment
-cfg := Config{
-	Host:     os.Getenv("DB_HOST"),
-	User:     os.Getenv("DB_USER"),
-	Password: os.Getenv("DB_PASSWORD"),
-	Database: os.Getenv("DB_NAME"),
-}
-db, _ := Connect(cfg)
-```
-
-### SQL injection via string concatenation
-
-```go
-// BAD: SQL injection vulnerability
-query := "SELECT * FROM users WHERE email = '" + email + "'"
-db.Query(query)
-
-// GOOD: Parameterized query
-db.QueryContext(ctx, "SELECT * FROM users WHERE email = ?", email)
-```
-
-### N+1 query problem
-
-```go
-// BAD: N+1 queries (1 + N lookups)
-orders, _ := db.QueryContext(ctx, "SELECT id, user_id FROM orders")
-for orders.Next() {
-	// Query for each order (N queries)
-	user, _ := db.QueryContext(ctx, "SELECT name FROM users WHERE id = ?", userID)
-}
-
-// GOOD: Single query with JOIN
-query := `
-	SELECT o.id, o.user_id, u.name
-	FROM orders o
-	JOIN users u ON o.user_id = u.id
-`
-rows, _ := db.QueryContext(ctx, query)
-```
 
 ## Connection Pool Sizing Guidelines
 
@@ -639,9 +278,8 @@ rows, _ := db.QueryContext(ctx, query)
 
 **Formula**: MaxOpenConns ≤ MySQL max_connections / number of app instances
 
-## References
+## Additional Resources
 
-- [sqlx documentation](https://jmoiron.github.io/sqlx/)
-- [go-sqlmock documentation](https://github.com/DATA-DOG/go-sqlmock)
-- [MySQL Driver (go-sql-driver)](https://github.com/go-sql-driver/mysql)
-- [Organizing Database Access in Go](https://www.alexedwards.net/blog/organising-database-access)
+- For database testing with go-sqlmock, see [sqlmock-testing.md](references/sqlmock-testing.md)
+- For migration strategies with golang-migrate, see [migration-guide.md](references/migration-guide.md)
+- For common anti-patterns (context, rows, transactions, SQL injection, N+1), see [anti-patterns.md](references/anti-patterns.md)

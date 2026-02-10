@@ -3,21 +3,13 @@ name: go-error-handling
 description: >
   Structured error handling patterns for Go. Use when designing error
   strategies, wrapping errors, creating sentinel errors, custom error
-  types, or when reviewing error handling in Go code.
+  types, using errors.Is/errors.As, mapping errors to HTTP responses,
+  or when reviewing error handling in Go code.
 ---
 
 # Go Error Handling
 
 Errors are values. Don't just check errors — handle them gracefully.
-
-## When to Apply
-
-Use this skill when:
-- Designing error handling strategy for a package or service
-- Wrapping or propagating errors
-- Creating custom error types or sentinel errors
-- Reviewing code for proper error handling
-- Deciding between `errors.New`, `fmt.Errorf`, and custom types
 
 ## Decision Framework
 
@@ -37,26 +29,10 @@ Ask these questions in order:
 
 ## Patterns
 
-### Pattern 1: Simple Error Wrapping (Most Common)
+### Pattern 1: Error Wrapping Rules
 
-The default. Add context as you propagate up the stack.
+The default pattern. Wrap with `fmt.Errorf("operation: %w", err)` as you propagate up.
 
-```go
-func (s *UserService) Activate(ctx context.Context, id string) error {
-    user, err := s.repo.FindByID(ctx, id)
-    if err != nil {
-        return fmt.Errorf("finding user %s: %w", id, err)
-    }
-
-    if err := s.mailer.SendWelcome(ctx, user.Email); err != nil {
-        return fmt.Errorf("sending welcome email to %s: %w", user.Email, err)
-    }
-
-    return nil
-}
-```
-
-**Rules for wrap messages:**
 - Use lowercase, no trailing punctuation
 - Describe the operation that failed: `"finding user"`, `"connecting to database"`
 - Include relevant identifiers: `"finding user %s"` not just `"finding user"`
@@ -64,38 +40,15 @@ func (s *UserService) Activate(ctx context.Context, id string) error {
 
 ### Pattern 2: Sentinel Errors
 
-Use for errors the caller must detect and handle differently.
+Use for well-known conditions that multiple callers need to branch on. Define in domain package, check with `errors.Is`:
 
 ```go
-package domain
-
-import "errors"
-
 var (
     ErrNotFound      = errors.New("not found")
     ErrAlreadyExists = errors.New("already exists")
     ErrForbidden     = errors.New("forbidden")
 )
 ```
-
-Callers check with `errors.Is`:
-
-```go
-user, err := svc.FindByID(ctx, id)
-if errors.Is(err, domain.ErrNotFound) {
-    http.Error(w, "user not found", http.StatusNotFound)
-    return
-}
-if err != nil {
-    http.Error(w, "internal error", http.StatusInternalServerError)
-    return
-}
-```
-
-**When to use sentinels:**
-- The error represents a well-known condition (not found, conflict, unauthorized)
-- Multiple callers need to branch on this condition
-- The error message is static
 
 ### Pattern 3: Custom Error Types
 
@@ -205,86 +158,15 @@ func (h *Handler) handleError(w http.ResponseWriter, r *http.Request, err error)
 
 ## Anti-Patterns
 
-### Don't panic
-`panic` is for programmer bugs (invalid state, impossible conditions), never for runtime errors. Don't use it for "file not found" or "connection refused".
-
-```go
-// BAD
-func MustParseConfig(path string) *Config {
-    cfg, err := ParseConfig(path)
-    if err != nil {
-        panic(err) // Don't do this in libraries
-    }
-    return cfg
-}
-
-// ACCEPTABLE only in main() or test setup
-func main() {
-    cfg := MustParseConfig("config.yaml") // OK here, program can't continue
-}
-```
-
-### Don't ignore errors
-
-```go
-// BAD
-json.Unmarshal(data, &result)
-
-// GOOD
-if err := json.Unmarshal(data, &result); err != nil {
-    return fmt.Errorf("unmarshaling response: %w", err)
-}
-```
-
-### Don't use string matching
-
-```go
-// BAD
-if strings.Contains(err.Error(), "not found") { ... }
-
-// GOOD
-if errors.Is(err, domain.ErrNotFound) { ... }
-```
-
-### Don't over-wrap
-
-```go
-// BAD: redundant wrapping
-func (r *repo) FindByID(ctx context.Context, id string) (*User, error) {
-    user, err := r.db.QueryRow(ctx, query, id)
-    if err != nil {
-        return nil, fmt.Errorf("error in FindByID: failed to query: %w", err)
-        // "error in FindByID" is redundant — the caller knows which function it called
-    }
-}
-
-// GOOD: add useful context only
-func (r *repo) FindByID(ctx context.Context, id string) (*User, error) {
-    user, err := r.db.QueryRow(ctx, query, id)
-    if err != nil {
-        return nil, fmt.Errorf("querying user %s: %w", id, err)
-    }
-}
-```
-
-### Don't log and return
-
-```go
-// BAD: error is logged twice — here and by the caller
-if err != nil {
-    log.Error("failed to find user", "error", err)
-    return fmt.Errorf("finding user: %w", err)
-}
-
-// GOOD: return with context, let the caller decide whether to log
-if err != nil {
-    return fmt.Errorf("finding user: %w", err)
-}
-```
+- **Don't panic** — `panic` is for programmer bugs only (invalid state, impossible conditions). `Must*` functions are acceptable only in `main()` or test setup
+- **Don't ignore errors** — Every error return must be checked
+- **Don't use string matching** — Use `errors.Is`/`errors.As`, never `strings.Contains(err.Error(), ...)`
+- **Don't over-wrap** — Add useful context, not redundant function names: `"querying user %s: %w"` not `"error in FindByID: failed to query: %w"`
+- **Don't log and return** — Either log or return with context, never both (causes duplicate logging)
 
 ## Package-Level Error Strategy
 
-Each package should document its error contract:
+Document each package's error contract:
 
 ```go
 // Package order manages order lifecycle operations.

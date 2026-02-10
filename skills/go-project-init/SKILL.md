@@ -2,22 +2,21 @@
 name: go-project-init
 description: >
   Scaffold a new Go project with clean architecture, proper structure,
-  Makefile, Dockerfile, CI config, and linting setup. Use when starting
-  a new Go service, CLI tool, or library from scratch.
+  Makefile, Dockerfile, and linting setup. Use when starting a new Go
+  service, CLI tool, or library from scratch.
 ---
 
 # Go Project Init
 
 Scaffold production-ready Go projects with consistent structure, tooling, and configuration.
 
-## When to Apply
+## Contents
 
-Use this skill when:
-- Creating a new Go microservice or API
-- Starting a new CLI tool
-- Creating a new Go library
-- Setting up a monorepo with multiple Go services
-- The user says "new project", "init", "scaffold", or "bootstrap"
+- [Workflow](#workflow)
+- [Project Types](#project-types)
+- [Boilerplate Files](#boilerplate-files)
+- [Dependencies to Consider](#dependencies-to-consider)
+- [Post-Scaffold Checklist](#post-scaffold-checklist)
 
 ## Workflow
 
@@ -142,227 +141,24 @@ mylib/
 
 ## Boilerplate Files
 
-### main.go (Service)
+Use the template files in [templates/](templates/) when scaffolding. Replace `{{.Module}}` and `{{.AppName}}` placeholders with actual values.
 
-```go
-package main
-
-import (
-    "context"
-    "fmt"
-    "log/slog"
-    "net/http"
-    "os"
-    "os/signal"
-    "syscall"
-    "time"
-
-    "{{.Module}}/internal/config"
-)
-
-func main() {
-    if err := run(); err != nil {
-        fmt.Fprintf(os.Stderr, "error: %v\n", err)
-        os.Exit(1)
-    }
-}
-
-func run() error {
-    ctx, stop := signal.NotifyContext(context.Background(),
-        syscall.SIGINT, syscall.SIGTERM)
-    defer stop()
-
-    cfg, err := config.Load("{{.AppName}}")
-    if err != nil {
-        return fmt.Errorf("loading config: %w", err)
-    }
-
-    var logLevel slog.Level
-    if err := logLevel.UnmarshalText([]byte(cfg.LogLevel)); err != nil {
-        return fmt.Errorf("invalid log level %q: %w", cfg.LogLevel, err)
-    }
-
-    logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
-        Level: logLevel,
-    }))
-    slog.SetDefault(logger)
-
-    // Initialize dependencies here:
-    // db, err := postgres.New(ctx, cfg.DatabaseURL)
-    // userRepo := user.NewPostgresRepository(db)
-    // userSvc := user.NewService(userRepo)
-    //
-    // orderRepo := order.NewPostgresRepository(db)
-    // orderSvc := order.NewService(orderRepo, userSvc)
-    //
-    // router := http.NewRouter(userSvc, orderSvc)
-
-    srv := &http.Server{
-        Addr:         cfg.Addr,
-        // Handler:   router,
-        ReadTimeout:  15 * time.Second,
-        WriteTimeout: 15 * time.Second,
-        IdleTimeout:  60 * time.Second,
-    }
-
-    errCh := make(chan error, 1)
-    go func() {
-        logger.Info("server starting", "addr", cfg.Addr)
-        errCh <- srv.ListenAndServe()
-    }()
-
-    select {
-    case err := <-errCh:
-        return fmt.Errorf("server error: %w", err)
-    case <-ctx.Done():
-        logger.Info("shutting down gracefully")
-    }
-
-    shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-    defer cancel()
-
-    return srv.Shutdown(shutdownCtx)
-}
-```
-
-### config.go
-
-```go
-package config
-
-import (
-    "fmt"
-    "time"
-
-    "github.com/kelseyhightower/envconfig"
-)
-
-type Config struct {
-    Addr        string        `default:":8080" split_words:"true"`
-    LogLevel    string        `default:"info" split_words:"true"`
-    DatabaseURL string        `required:"true" split_words:"true" envconfig:"DATABASE_URL"`
-    Timeout     time.Duration `default:"15s" split_words:"true"`
-}
-
-// Load reads configuration from environment variables with the given prefix.
-// For example, if prefix is "MYAPP", it will read MYAPP_ADDR, MYAPP_DATABASE_URL, etc.
-func Load(prefix string) (*Config, error) {
-    var cfg Config
-    if err := envconfig.Process(prefix, &cfg); err != nil {
-        return nil, fmt.Errorf("processing config: %w", err)
-    }
-
-    return &cfg, nil
-}
-```
-
-### Makefile
-
-```makefile
-.PHONY: all build test lint run clean migrate
-
-APP_NAME := {{.Name}}
-BUILD_DIR := ./bin
-
-all: lint test build
-
-build:
-	go build -o $(BUILD_DIR)/$(APP_NAME) ./cmd/$(APP_NAME)
-
-run:
-	go run ./cmd/$(APP_NAME)
-
-test:
-	go test -race -count=1 ./...
-
-test-coverage:
-	go test -race -coverprofile=coverage.out ./...
-	go tool cover -html=coverage.out -o coverage.html
-
-lint:
-	golangci-lint run ./...
-
-fmt:
-	goimports -w .
-	gofmt -s -w .
-
-vet:
-	go vet ./...
-
-tidy:
-	go mod tidy
-	go mod verify
-
-clean:
-	rm -rf $(BUILD_DIR) coverage.out coverage.html
-
-migrate-up:
-	migrate -path migrations -database "$(DATABASE_URL)" up
-
-migrate-down:
-	migrate -path migrations -database "$(DATABASE_URL)" down 1
-
-docker-build:
-	docker build -t $(APP_NAME) .
-
-docker-run:
-	docker compose up -d
-```
-
-### Dockerfile (multi-stage)
-
-```dockerfile
-FROM golang:1.23-alpine AS builder
-
-RUN apk add --no-cache git ca-certificates
-
-WORKDIR /app
-
-COPY go.mod go.sum ./
-RUN go mod download
-
-COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /app/bin/server ./cmd/{{.Name}}
-
-FROM alpine:3.20
-
-RUN apk add --no-cache ca-certificates tzdata
-RUN adduser -D -g '' appuser
-
-COPY --from=builder /app/bin/server /usr/local/bin/server
-
-USER appuser
-
-EXPOSE 8080
-
-ENTRYPOINT ["server"]
-```
-
-### .gitignore
-
-```
-bin/
-*.exe
-*.out
-coverage.out
-coverage.html
-.env
-.env.local
-vendor/
-tmp/
-```
-
-### .golangci.yml
-
-See the `go-style` skill for the recommended linting configuration.
+| File | Template | Description |
+|------|----------|-------------|
+| `cmd/<name>/main.go` | [main.go.tmpl](templates/main.go.tmpl) | Service entrypoint with graceful shutdown and signal handling |
+| `internal/config/config.go` | [config.go.tmpl](templates/config.go.tmpl) | Environment-based configuration using envconfig |
+| `Makefile` | [Makefile.tmpl](templates/Makefile.tmpl) | Build, test, lint, migration, and Docker targets |
+| `Dockerfile` | [Dockerfile.tmpl](templates/Dockerfile.tmpl) | Multi-stage build with distroless runtime |
+| `.gitignore` | [gitignore.tmpl](templates/gitignore.tmpl) | Standard Go project ignores |
+| `.golangci.yml` | See the `go-style` skill | Recommended linting configuration |
 
 ## Dependencies to Consider
 
 | Need | Recommended | Why |
 |------|-------------|-----|
-| HTTP router | `net/http` (stdlib) | Good enough for most cases since Go 1.22 |
+| HTTP router | `net/http` (stdlib) | Good enough for most cases with enhanced routing |
 | HTTP router (alternative) | `github.com/go-chi/chi/v5` | Lightweight, idiomatic, composable middleware, compatible with `net/http` |
-| Structured logging | `log/slog` (stdlib) | Standard since Go 1.21, zero dependencies |
+| Structured logging | `log/slog` (stdlib) | Standard library, zero dependencies |
 | Database (Postgres) | `github.com/jackc/pgx/v5` | Best Postgres driver for Go |
 | Database (generic SQL) | `database/sql` + driver | Standard interface |
 | Database extensions | `github.com/jmoiron/sqlx` | Extends `database/sql` with convenient helpers (Named queries, `Get`, `Select`) |

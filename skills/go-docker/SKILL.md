@@ -10,14 +10,19 @@ description: >
 
 Build small, secure, production-ready containers. Static binaries, distroless images, non-root users.
 
-## When to Apply
+## Contents
 
-Use this skill when:
-- Containerizing Go applications for production
-- Optimizing Docker image size and build time
-- Setting up CI/CD pipelines with Docker
-- Handling private Go modules in Docker builds
-- Reviewing Dockerfiles for security and efficiency
+- [Decision Framework: Base Image Selection](#decision-framework-base-image-selection)
+- [Pattern 1: Multi-Stage Build (Production-Ready)](#pattern-1-multi-stage-build-production-ready)
+- [Pattern 2: Layer Caching Optimization](#pattern-2-layer-caching-optimization)
+- [Pattern 3: .dockerignore (Reduce Build Context)](#pattern-3-dockerignore-reduce-build-context)
+- [Pattern 4: Build Arguments and Metadata](#pattern-4-build-arguments-and-metadata)
+- [Pattern 5: Non-Root User Security](#pattern-5-non-root-user-security)
+- [Pattern 6: Health Checks](#pattern-6-health-checks)
+- [Anti-Patterns](#anti-patterns)
+- [Additional Resources](#additional-resources)
+
+**Note:** Examples use `golang:1.24-alpine` — always substitute the latest stable Go release.
 
 ## Decision Framework: Base Image Selection
 
@@ -39,7 +44,7 @@ Build in one stage, run in minimal distroless image.
 # syntax=docker/dockerfile:1
 
 # Stage 1: Build
-FROM golang:1.21-alpine AS builder
+FROM golang:1.24-alpine AS builder
 
 WORKDIR /build
 
@@ -87,12 +92,14 @@ ENTRYPOINT ["/app"]
 - Copy only the binary to runtime image
 - Use nonroot user for security
 
+**Size impact:** Full golang image ~1.2GB → multi-stage distroless ~10-20MB (95% smaller).
+
 ## Pattern 2: Layer Caching Optimization
 
 Order Dockerfile instructions for maximum cache reuse.
 
 ```dockerfile
-FROM golang:1.21-alpine AS builder
+FROM golang:1.24-alpine AS builder
 
 WORKDIR /build
 
@@ -107,15 +114,7 @@ COPY . .
 RUN CGO_ENABLED=0 go build -o app ./cmd/api
 ```
 
-**Layer Caching Strategy:**
-1. Dependencies (go.mod, go.sum) - cached unless dependencies change
-2. Source code - cached unless code changes
-3. Build command - runs only if previous layers change
-
-**Build time comparison:**
-- First build: ~60s (download deps + build)
-- Code change only: ~5s (reuse cached deps)
-- Dependency change: ~60s (re-download deps + build)
+**Build time impact:** Code-only changes reuse cached dependency layers (~5s vs ~60s full build).
 
 ## Pattern 3: .dockerignore (Reduce Build Context)
 
@@ -169,17 +168,12 @@ Dockerfile
 docker-compose.yml
 ```
 
-**Benefits:**
-- Faster builds (smaller context sent to Docker daemon)
-- Smaller images (exclude unnecessary files)
-- Security (no secrets accidentally copied)
-
 ## Pattern 4: Build Arguments and Metadata
 
 Use build args for versioning and configuration.
 
 ```dockerfile
-FROM golang:1.21-alpine AS builder
+FROM golang:1.24-alpine AS builder
 
 # Build arguments
 ARG VERSION=dev
@@ -227,153 +221,7 @@ docker build \
   .
 ```
 
-## Pattern 5: Private Go Modules Without Exposing Secrets
-
-Use Docker secrets or SSH for private module access without leaking credentials.
-
-### Option 1: SSH Agent Forwarding (Recommended)
-
-```dockerfile
-# syntax=docker/dockerfile:1
-
-FROM golang:1.21-alpine AS builder
-
-# Install git and SSH
-RUN apk add --no-cache git openssh-client
-
-WORKDIR /build
-
-# Configure Git to use SSH for private repos
-RUN git config --global url."git@github.com:".insteadOf "https://github.com/"
-
-COPY go.mod go.sum ./
-
-# Mount SSH agent socket (doesn't persist in image)
-RUN --mount=type=ssh \
-    go mod download
-
-COPY . .
-
-RUN CGO_ENABLED=0 go build -o app ./cmd/api
-
-FROM gcr.io/distroless/static:nonroot
-COPY --from=builder /build/app /app
-USER nonroot:nonroot
-ENTRYPOINT ["/app"]
-```
-
-**Build with SSH forwarding:**
-```bash
-# Ensure ssh-agent is running and key is added
-eval $(ssh-agent)
-ssh-add ~/.ssh/id_rsa
-
-# Build with SSH mount
-docker build --ssh default -t myapi:latest .
-```
-
-**Benefits:**
-- SSH key never written to image layers
-- No credentials in environment variables
-- Works with GitHub, GitLab, Bitbucket
-
-### Option 2: Build-Time Secrets (Docker BuildKit)
-
-```dockerfile
-# syntax=docker/dockerfile:1
-
-FROM golang:1.21-alpine AS builder
-
-RUN apk add --no-cache git
-
-WORKDIR /build
-
-# Configure GOPRIVATE
-ENV GOPRIVATE="github.com/yourorg/*"
-
-COPY go.mod go.sum ./
-
-# Mount secret file (ephemeral, not persisted)
-RUN --mount=type=secret,id=github_token \
-    git config --global url."https://$(cat /run/secrets/github_token)@github.com/".insteadOf "https://github.com/" && \
-    go mod download && \
-    git config --global --unset url.https://github.com/.insteadof
-
-COPY . .
-RUN CGO_ENABLED=0 go build -o app ./cmd/api
-
-FROM gcr.io/distroless/static:nonroot
-COPY --from=builder /build/app /app
-USER nonroot:nonroot
-ENTRYPOINT ["/app"]
-```
-
-**Build with secret:**
-```bash
-# Token from environment variable
-docker build \
-  --secret id=github_token,env=GITHUB_TOKEN \
-  -t myapi:latest \
-  .
-
-# Or from file
-docker build \
-  --secret id=github_token,src=$HOME/.github_token \
-  -t myapi:latest \
-  .
-```
-
-### Option 3: Netrc for HTTPS Authentication
-
-```dockerfile
-FROM golang:1.21-alpine AS builder
-
-WORKDIR /build
-
-ENV GOPRIVATE="github.com/yourorg/*"
-
-COPY go.mod go.sum ./
-
-# Mount .netrc file (ephemeral)
-RUN --mount=type=secret,id=netrc,target=/root/.netrc \
-    go mod download
-
-COPY . .
-RUN CGO_ENABLED=0 go build -o app ./cmd/api
-
-FROM gcr.io/distroless/static:nonroot
-COPY --from=builder /build/app /app
-USER nonroot:nonroot
-ENTRYPOINT ["/app"]
-```
-
-**~/.netrc file:**
-```
-machine github.com
-login your-username
-password ghp_yourpersonalaccesstoken
-```
-
-**Build:**
-```bash
-docker build --secret id=netrc,src=$HOME/.netrc -t myapi:latest .
-```
-
-## Decision Framework: GOPRIVATE Authentication Method
-
-| Method | Security | CI/CD Ease | Use Case |
-|---|---|---|---|
-| **SSH forwarding** | Best (no creds in image) | Requires SSH setup | Local dev, GitHub Actions |
-| **Build secrets** | Good (ephemeral mount) | Easy with secret mgmt | GitLab CI, AWS/GCP |
-| **Netrc** | Good (ephemeral mount) | Easy | HTTPS-only environments |
-
-**Never do this:**
-```dockerfile
-# BAD: Token in ENV (persisted in layer!)
-ENV GITHUB_TOKEN=ghp_abc123
-```
-
-## Pattern 6: Non-Root User Security
+## Pattern 5: Non-Root User Security
 
 Always run containers as non-root user.
 
@@ -403,7 +251,7 @@ ENTRYPOINT ["/app"]
 - Used by distroless images
 - Recognized by Kubernetes security contexts
 
-## Pattern 7: Health Checks
+## Pattern 6: Health Checks
 
 Define health checks in Dockerfile for container orchestration.
 
@@ -447,82 +295,7 @@ func healthCheck() {
 }
 ```
 
-## Pattern 8: Size Optimization Comparison
-
-```dockerfile
-# ❌ BAD: 1.2GB (full golang image)
-FROM golang:1.21
-COPY . .
-RUN go build -o app ./cmd/api
-CMD ["/app"]
-
-# ⚠️  BETTER: 800MB (alpine builder, but binary in alpine)
-FROM golang:1.21-alpine
-COPY . .
-RUN go build -o app ./cmd/api
-CMD ["/app"]
-
-# ✅ BEST: 10-20MB (multi-stage with distroless)
-FROM golang:1.21-alpine AS builder
-WORKDIR /build
-COPY go.mod go.sum ./
-RUN go mod download
-COPY . .
-RUN CGO_ENABLED=0 go build -o app ./cmd/api
-
-FROM gcr.io/distroless/static:nonroot
-COPY --from=builder /build/app /app
-USER nonroot:nonroot
-ENTRYPOINT ["/app"]
-```
-
-**Size comparison:**
-- Full golang image: ~1.2GB
-- Alpine with binary: ~800MB
-- Multi-stage distroless: ~10-20MB (95% smaller!)
-
 ## Anti-Patterns
-
-### Running as root
-
-```dockerfile
-# BAD: Running as root (security risk)
-FROM alpine
-COPY app /app
-CMD ["/app"]
-
-# GOOD: Non-root user
-FROM gcr.io/distroless/static:nonroot
-COPY app /app
-USER nonroot:nonroot
-CMD ["/app"]
-```
-
-### Not using .dockerignore
-
-```dockerfile
-# BAD: Copies everything (slow, large context)
-COPY . .
-
-# GOOD: With .dockerignore excluding unnecessary files
-COPY . .  # But with .dockerignore filtering
-```
-
-### Installing unnecessary packages
-
-```dockerfile
-# BAD: Bloated runtime image
-FROM alpine
-RUN apk add --no-cache bash curl wget vim git
-COPY app /app
-CMD ["/app"]
-
-# GOOD: Minimal runtime
-FROM gcr.io/distroless/static:nonroot
-COPY app /app
-USER nonroot:nonroot
-CMD ["/app"]
-```
 
 ### Not pinning base image versions
 
@@ -532,7 +305,7 @@ FROM golang:latest
 FROM alpine
 
 # GOOD: Pinned versions
-FROM golang:1.21.5-alpine3.19
+FROM golang:1.24.5-alpine3.19
 FROM gcr.io/distroless/static:nonroot-amd64@sha256:abc123...
 ```
 
@@ -549,77 +322,18 @@ RUN --mount=type=secret,id=github_token \
     git clone https://$(cat /run/secrets/github_token)@github.com/private/repo.git
 ```
 
-### Ignoring layer caching order
+### Installing unnecessary packages in runtime
 
 ```dockerfile
-# BAD: Code copied before deps (cache busted frequently)
-COPY . .
-RUN go mod download
-RUN go build -o app ./cmd/api
+# BAD: Bloated runtime image
+FROM alpine
+RUN apk add --no-cache bash curl wget vim git
+COPY app /app
 
-# GOOD: Deps first, code second
-COPY go.mod go.sum ./
-RUN go mod download
-COPY . .
-RUN go build -o app ./cmd/api
+# GOOD: Use distroless (see Pattern 1)
 ```
 
-## Makefile Integration
+## Additional Resources
 
-```makefile
-.PHONY: docker-build
-docker-build:
-	docker build \
-		--build-arg VERSION=$(shell git describe --tags --always) \
-		--build-arg BUILD_DATE=$(shell date -u +'%Y-%m-%dT%H:%M:%SZ') \
-		--build-arg GIT_COMMIT=$(shell git rev-parse HEAD) \
-		-t myapi:latest \
-		.
-
-.PHONY: docker-build-private
-docker-build-private:
-	docker build \
-		--ssh default \
-		--build-arg VERSION=$(shell git describe --tags --always) \
-		-t myapi:latest \
-		.
-
-.PHONY: docker-run
-docker-run:
-	docker run -p 8080:8080 --rm myapi:latest
-
-.PHONY: docker-scan
-docker-scan:
-	docker scan myapi:latest
-```
-
-## Security Scanning in CI/CD
-
-```yaml
-# .github/workflows/docker.yml
-name: Docker Build
-
-on: [push]
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Build image
-        run: docker build -t myapi:${{ github.sha }} .
-
-      - name: Scan with Trivy
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: myapi:${{ github.sha }}
-          severity: 'CRITICAL,HIGH'
-          exit-code: '1'  # Fail build on vulnerabilities
-```
-
-## References
-
-- [Docker Multi-Stage Builds](https://docs.docker.com/build/building/multi-stage/)
-- [Distroless Images](https://github.com/GoogleContainerTools/distroless)
-- [Docker BuildKit Secrets](https://docs.docker.com/build/building/secrets/)
+- For handling private Go modules in Docker builds, see [private-modules.md](references/private-modules.md)
+- For Makefile targets and CI/CD security scanning, see [ci-cd.md](references/ci-cd.md)
