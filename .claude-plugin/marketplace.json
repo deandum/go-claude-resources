@@ -1,0 +1,35 @@
+{
+  "name": "go-claude-resources",
+  "owner": {
+    "name": "Dean Dumitru"
+  },
+  "metadata": {
+    "description": "Claude Code agents and skills for Go development",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "go-skills",
+      "description": "Topic-specific skills for Go development covering style, testing, error handling, concurrency, API design, CLI building, database patterns, Docker, observability, and more",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./skills/go-api-design",
+        "./skills/go-cli",
+        "./skills/go-code-review",
+        "./skills/go-concurrency",
+        "./skills/go-context",
+        "./skills/go-database",
+        "./skills/go-docker",
+        "./skills/go-error-handling",
+        "./skills/go-interface-design",
+        "./skills/go-modules",
+        "./skills/go-observability",
+        "./skills/go-project-init",
+        "./skills/go-style",
+        "./skills/go-testing",
+        "./skills/go-testing-with-framework"
+      ]
+    }
+  ]
+}
