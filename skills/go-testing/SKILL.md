@@ -294,7 +294,7 @@ func (s *stubUserRepo) FindByID(_ context.Context, id string) (*User, error) {
 ## Testing Anti-Patterns
 
 - **Testing private functions** — test the public API; private functions are implementation details
-- **Test frameworks (testify, gomega)** — stdlib `testing` + table-driven tests cover 99% of needs
+- **Test frameworks (testify, gomega) when not already established** — stdlib `testing` + table-driven tests cover 99% of needs; if the project already uses a framework, follow the existing convention (see `go-testing-with-framework`)
 - **Complex test setup** — indicates tight coupling; simplify the design first
 - **Mocking everything** — only mock at boundaries; over-mocking makes tests brittle
 - **Integration tests mixed with unit tests** — use `test-integration/` for clear separation

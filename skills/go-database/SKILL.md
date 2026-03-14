@@ -240,7 +240,7 @@ func (r *UserRepository) FindByEmail(ctx context.Context, email string) (*User, 
 	err := r.db.GetContext(ctx, &user,
 		"SELECT id, name, email FROM users WHERE email = ?", email)
 
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, fmt.Errorf("user not found: %w", err)
 	}
 	if err != nil {

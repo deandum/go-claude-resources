@@ -11,6 +11,7 @@ skills:
   - go-style
   - go-error-handling
   - go-concurrency
+  - go-database
 memory: project
 ---
 
