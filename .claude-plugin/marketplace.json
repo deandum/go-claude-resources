@@ -29,16 +29,6 @@
 				"./skills/go-style",
 				"./skills/go-testing",
 				"./skills/go-testing-with-framework"
-			],
-			"agents": [
-				"./agents/go-architect",
-				"./agents/go-builder",
-				"./agents/go-cli-builder",
-				"./agents/go-critic",
-				"./agents/go-lead",
-				"./agents/go-reviewer",
-				"./agents/go-shipper",
-				"./agents/go-tester"
 			]
 		}
 	]
