@@ -115,3 +115,10 @@ package order
 - **Don't string match** — use `errors.Is`/`errors.As`, never `strings.Contains(err.Error(), ...)`
 - **Don't over-wrap** — `"querying user %s: %w"` not `"error in FindByID: failed to query: %w"`
 - **Don't log and return** — either log or return with context, never both
+
+## Verification
+
+- [ ] `go vet ./...` passes with no diagnostics
+- [ ] No bare `return err` — all errors wrapped with `fmt.Errorf("context: %w", err)`
+- [ ] `errors.Is`/`errors.As` used for error checks (no `strings.Contains(err.Error(), ...)`)
+- [ ] Errors include operation context and relevant identifiers when wrapped

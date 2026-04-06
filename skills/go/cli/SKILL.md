@@ -94,3 +94,10 @@ return doWork(ctx)
 ## Additional Resources
 
 - [output-formatting.md](references/output-formatting.md), [testing-commands.md](references/testing-commands.md), [shell-completion.md](references/shell-completion.md)
+
+## Verification
+
+- [ ] `--help` works for all commands and subcommands
+- [ ] Config precedence is correct: flags > env vars > config file > defaults
+- [ ] Exit codes are correct: `0` success, `1` error, `2` usage error
+- [ ] Signal handling present for long-running commands (`SIGINT`/`SIGTERM`)

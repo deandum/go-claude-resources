@@ -78,3 +78,10 @@ Preserves parent's values (trace ID) but outlives parent's cancellation.
 - **String keys** — use custom types to prevent collisions
 - **Ignoring cancellation** — check `ctx.Done()` in loops
 - **Background in inner functions** — pass parent context through
+
+## Verification
+
+- [ ] `context.Context` is the first parameter in every function that accepts one
+- [ ] No `context.Context` stored in struct fields
+- [ ] Custom key types used for context values (not bare `string`)
+- [ ] `WithTimeout`/`WithCancel` always paired with `defer cancel()`

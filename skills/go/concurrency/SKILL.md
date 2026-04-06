@@ -128,3 +128,10 @@ var count atomic.Int64; go func() { count.Add(1) }()
 for _, item := range items { go process(item) }
 // GOOD: use errgroup.SetLimit or worker pool
 ```
+
+## Verification
+
+- [ ] `go vet ./...` reports no issues
+- [ ] `go test -race ./...` passes with no data races detected
+- [ ] `errgroup` used for goroutine coordination with error propagation
+- [ ] Channels closed by sender only, never by receiver

@@ -73,3 +73,10 @@ govulncheck ./...  # Run before releases and in CI
 - Replace in production — remove before releasing
 - Skipping `go mod tidy` — run after every dependency change
 - Blindly using @latest — pin versions
+
+## Verification
+
+- [ ] `go mod tidy` produces no changes (module files already clean)
+- [ ] `go.sum` is committed alongside `go.mod`
+- [ ] No `replace` directives in `go.mod` for production builds
+- [ ] `govulncheck ./...` passes with no known vulnerabilities

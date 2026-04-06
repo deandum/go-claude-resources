@@ -73,3 +73,10 @@ import (
 ## Linting
 
 Use `.golangci.yml` from [templates/golangci.yml](templates/golangci.yml).
+
+## Verification
+
+- [ ] `gofmt`/`goimports` applied with no formatting diff
+- [ ] `golangci-lint run` passes with no warnings or errors
+- [ ] Initialisms are all caps (`ID`, `URL`, `HTTP`, `API` — not `Id`, `Url`)
+- [ ] All exported types, functions, and constants have doc comments

@@ -96,3 +96,10 @@ func (h *Handler) readyz(w http.ResponseWriter, r *http.Request) {
 ## Additional Resources
 
 - [alerting.md](references/alerting.md), [correlation-ids.md](references/correlation-ids.md)
+
+## Verification
+
+- [ ] `slog` structured logging configured with appropriate level and format
+- [ ] Prometheus metrics registered and exposed at `/metrics` endpoint
+- [ ] Health endpoints (`/healthz`, `/readyz`) respond with HTTP 200 when healthy
+- [ ] No PII (emails, passwords, tokens) present in log output

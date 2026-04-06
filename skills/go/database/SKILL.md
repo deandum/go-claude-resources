@@ -92,3 +92,10 @@ Formula: MaxOpenConns <= MySQL max_connections / app instances
 ## Additional Resources
 
 - [sqlmock-testing.md](references/sqlmock-testing.md), [migration-guide.md](references/migration-guide.md), [anti-patterns.md](references/anti-patterns.md)
+
+## Verification
+
+- [ ] `*Context` method variants used everywhere (never `Exec`, `Query`, `Get` without context)
+- [ ] `defer tx.Rollback()` present immediately after every `BeginTxx` call
+- [ ] All queries use parameterized placeholders (`?`) — no string concatenation of user input
+- [ ] Connection pool configured (`SetMaxOpenConns`, `SetMaxIdleConns`, `SetConnMaxLifetime`)

@@ -93,3 +93,11 @@ Use [templates/](templates/) — replace `{{.Module}}` and `{{.AppName}}` placeh
 - `make build` produces binary
 - `docker build` succeeds
 - README documents how to run locally
+
+## Verification
+
+- [ ] `go mod tidy` runs cleanly with no changes
+- [ ] `make lint` passes with no warnings or errors
+- [ ] `make test` passes with all tests green
+- [ ] `make build` produces a working binary
+- [ ] `docker build` succeeds and produces a valid image

@@ -130,3 +130,10 @@ repo := &UserRepositoryFunc{
 
 - [integration-testing.md](references/integration-testing.md) — integration test patterns
 - [advanced-testing.md](references/advanced-testing.md) — benchmarks, golden files, fuzzing, coverage
+
+## Verification
+
+- [ ] `go test -race -v ./...` passes with no failures or data races
+- [ ] Table-driven tests used for functions with multiple input/output cases
+- [ ] `t.Helper()` called at the start of every test helper function
+- [ ] Bug fixes include a regression test that fails without the fix

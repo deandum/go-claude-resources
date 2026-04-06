@@ -46,3 +46,9 @@ Go-specific checklist items to supplement the core review process.
 - Input validation at HTTP boundary
 
 Full detailed checklist: [checklist.md](references/checklist.md)
+
+## Verification
+
+- [ ] All Go-specific checklist categories reviewed (correctness, style, concurrency, performance, security)
+- [ ] `go vet ./...` and `golangci-lint run` produce no findings
+- [ ] Race detector findings addressed (`go test -race ./...` passes)

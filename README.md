@@ -1,71 +1,88 @@
 # claude-resources
 
-Multi-language Claude Code agents and skills for production-grade development. Two-tier architecture: **core skills** (language-agnostic principles) + **language skills** (implementation patterns). Currently supports Go, with Angular and other languages planned.
+Multi-language Claude Code agents and skills for production-grade development. Two-tier architecture: **core skills** (language-agnostic workflows) + **language skills** (implementation patterns). Currently supports Go, with Angular and other languages planned.
 
 ## Architecture
 
 ```
 skills/
-├── core/          # Language-agnostic: decision frameworks, principles, checklists (no code)
+├── core/          # Language-agnostic: workflows, decision frameworks, verification gates
 └── go/            # Go-specific: code patterns, tool configs, framework usage
     # angular/     # (planned)
     # node/        # (planned)
 ```
 
-**Token efficiency by design:**
-- Core skills: ~50-80 lines each (principles only, no code examples)
-- Language skills: ~100-200 lines each (code patterns only, no redundant explanations)
-- References lazy-loaded (not included in default skill context)
-- Session-start hook detects language, surfaces only relevant skills
-- Agents use caveman-style output compression (drop filler, fragments ok)
+## Slash Commands
+
+| Command | Purpose |
+|---------|---------|
+| `/define` | Analyze task requirements, generate structured spec |
+| `/plan` | Design architecture and project structure |
+| `/build` | Implement application code following patterns |
+| `/test` | Write and run tests |
+| `/review` | Code review across five axes |
+| `/ship` | Containerize and add observability |
+| `/orchestrate` | Decompose complex task, delegate to agents |
 
 ## Agents
 
 | Agent | Role |
 |-------|------|
-| **critic** | Analyzes prompts for clarity. ALWAYS runs first. |
-| **architect** | Package layout, interfaces, API surface design |
-| **builder** | Application code implementation |
-| **cli-builder** | CLI implementation |
-| **tester** | Test writing and execution |
-| **reviewer** | Read-only code review |
-| **shipper** | Containerization and observability |
-| **lead** | Orchestrates complex multi-agent tasks |
+| **critic** | Challenges vague requirements. ALWAYS runs first. |
+| **lead** | Produces structured specs, delegates to team |
+| **architect** | Package layout, interfaces, API surfaces |
+| **builder** | Application code following established patterns |
+| **cli-builder** | CLI commands, flags, config handling |
+| **tester** | Tests, mocks, coverage strategy |
+| **reviewer** | Five-axis code review (read-only) |
+| **shipper** | Docker, logging, metrics, health checks |
 
 All agents auto-detect project language and load appropriate skills.
 
 ## Skills
 
-### Core (language-agnostic)
+### Core (11 language-agnostic workflow skills)
 
-`error-handling` · `testing` · `code-review` · `api-design` · `concurrency` · `observability` · `docker` · `project-structure` · `style`
+`spec-generation` · `skill-discovery` · `error-handling` · `testing` · `code-review` · `api-design` · `concurrency` · `observability` · `docker` · `project-structure` · `style`
 
-### Go
+Every core skill follows a standard anatomy: When to Use, Core Process, Decision Frameworks, Common Rationalizations, Red Flags, and Verification.
+
+### Go (15 implementation skills)
 
 `error-handling` · `testing` · `testing-with-framework` · `concurrency` · `context` · `database` · `interface-design` · `modules` · `style` · `cli` · `api-design` · `observability` · `docker` · `project-init` · `code-review`
 
-## Recommended Tools
+## Spec-Driven Workflow
 
-For efficient codebase exploration, install these alongside claude-resources:
+The lead agent produces structured **SPEC files** that other agents consume directly:
+
+1. `/define` → critic clarifies → lead generates `SPEC-[task].md`
+2. Spec includes: Objective, Assumptions, Scope, Subtasks (in waves), Commands, Boundaries, Success Criteria
+3. User approves spec → lead executes waves → agents consume spec as prompt
+4. Verify against spec's success criteria
+
+## Operational Learning
+
+Session hooks capture project-specific learnings:
+- Agents log quirks, conventions, and gotchas during work
+- Learnings stored per-project in `~/.claude-resources/learnings/`
+- Next session injects recent learnings automatically
+- Prevents re-discovery of known patterns
+
+## Recommended Tools
 
 | Tool | Purpose | Install |
 |------|---------|---------|
-| **LSP** (native) | Go-to-definition, references, types (~50ms navigation) | `ENABLE_LSP_TOOL=true` + language plugins |
-| **ast-grep** | Structural code search (AST patterns, not just regex) | `npm i @ast-grep/cli -g` + skill or MCP server |
-| **Codebase-Memory-MCP** | Knowledge graph indexing for large codebases | See [repo](https://github.com/DeusData/codebase-memory-mcp) |
-
-LSP handles navigation. ast-grep handles pattern matching. They're complementary, not redundant.
-
-## Usage
-
-Copy agents and skills into your project's `.claude/` directory, or reference this repo in your Claude Code configuration.
+| **LSP** (native) | Go-to-definition, references (~50ms) | `ENABLE_LSP_TOOL=true` + plugins |
+| **ast-grep** | Structural code search (AST patterns) | `npm i @ast-grep/cli -g` |
+| **Codebase-Memory-MCP** | Knowledge graph for large codebases | [repo](https://github.com/DeusData/codebase-memory-mcp) |
 
 ## Adding a New Language
 
 1. Create `skills/<lang>/` with language-specific skill directories
 2. Each skill extends a core skill with implementation patterns
-3. Update `marketplace.json` to register the new skill group
-4. Update `hooks/session-start.sh` to detect the new language
+3. Add `## Verification` with tool-level checklist items
+4. Update `marketplace.json` to register the new skill group
+5. Update `hooks/session-start.sh` to detect the new language
 
 ## License
 

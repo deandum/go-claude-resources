@@ -15,25 +15,52 @@
 - **Testing:** stdlib (default) or Ginkgo/Gomega (if adopted)
 - **Linting:** golangci-lint
 
+## Commands
+
+```bash
+# Build
+go build -o bin/myservice ./cmd/myservice
+
+# Test
+go test -race -v ./...
+
+# Lint
+golangci-lint run
+
+# Dev
+go run ./cmd/myservice
+```
+
 ## Agent Workflow
 
-**MANDATORY: Every user prompt MUST be routed to the critic agent first.** Do not begin any implementation, design, or analysis work until critic has analyzed the request and produced a structured task definition. No exceptions.
+Use slash commands as entry points:
 
-After critic approves the task, use the appropriate agents:
+1. `/define` — ALWAYS FIRST. Clarifies requirements, generates structured spec.
+2. `/plan` — Architecture and design. Package layout, interfaces.
+3. `/build` — Implementation. Follows spec and established patterns.
+4. `/test` — Tests after implementation. Prove-it pattern for bugs.
+5. `/review` — Code review. Five axes, severity labels.
+6. `/ship` — Docker, logging, metrics, health checks.
+7. `/orchestrate` — Complex multi-step tasks. Decomposes into spec + waves.
 
-1. **critic** - ALWAYS FIRST. Analyzes every prompt for clarity, completeness, and feasibility.
-2. **architect** - Design phase. Package layout, interfaces, API surface.
-3. **builder** - Implementation. Writes application code following established patterns.
-4. **cli-builder** - CLI-specific implementation. Use instead of builder for CLI commands.
-5. **tester** - Write and run tests after implementation.
-6. **reviewer** - Code review. Read-only. Run after implementation and testing.
-7. **shipper** - Containerization and observability. Dockerfile, logging, metrics, health checks.
+## Boundaries
 
-## Do NOT
+### Always do
+- Run tests before commits
+- Follow naming conventions from codebase
+- Validate inputs at HTTP boundary
+- Wrap errors with operation context
+- Update spec if scope changes
 
-- Add features, abstractions, or "improvements" that weren't asked for
-- Create helpers or utilities for one-time operations
-- Add comments to code you didn't change or self-documenting code
-- Run as root in containers
-- Hardcode credentials, connection strings, or secrets
-- Commit generated files, binaries, or `.env` files
+### Ask first
+- Database schema changes
+- Adding external dependencies
+- Changing CI/CD configuration
+- Removing existing code or tests
+
+### Never do
+- Commit secrets, credentials, or .env files
+- Run containers as root
+- Hardcode connection strings
+- Add features not in the spec
+- Skip the critic/define step for non-trivial tasks

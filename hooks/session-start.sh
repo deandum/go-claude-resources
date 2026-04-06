@@ -30,6 +30,19 @@ for lang in "${DETECTED_LANGS[@]}"; do
   fi
 done
 
+# Load recent operational learnings for this project
+PROJECT_SLUG=$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)")
+LEARNINGS_FILE="${HOME}/.claude-resources/learnings/${PROJECT_SLUG}.jsonl"
+RECENT_LEARNINGS=""
+if [ -f "$LEARNINGS_FILE" ]; then
+  RECENT_LEARNINGS=$(tail -10 "$LEARNINGS_FILE" 2>/dev/null | while IFS= read -r line; do
+    echo "$line" | python3 -c "import sys,json; print(json.loads(sys.stdin.read()).get('learning',''))" 2>/dev/null
+  done | tr '\n' '; ' | sed 's/; $//')
+fi
+
+# Export buffer path for agents to write learnings during session
+export CLAUDE_LEARNINGS_BUFFER="/tmp/claude-learnings-${PROJECT_SLUG}-$$"
+
 # Check for recommended codebase exploration tools
 TOOLS_MISSING=()
 command -v ast-grep >/dev/null 2>&1 || TOOLS_MISSING+=("ast-grep")
@@ -47,6 +60,7 @@ cat <<EOF
   "core_skills": "$CORE_SKILLS",
   "language_skills": "${LANG_SKILLS:-none}",
   "tools_warning": "$TOOLS_MSG",
+  "recent_learnings": "$RECENT_LEARNINGS",
   "style": "concise — drop filler, lead with action, fragments ok. Code and technical terms use normal English."
 }
 EOF

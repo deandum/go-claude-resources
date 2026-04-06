@@ -106,3 +106,10 @@ USER 65532:65532
 ## Additional Resources
 
 - [private-modules.md](references/private-modules.md), [ci-cd.md](references/ci-cd.md)
+
+## Verification
+
+- [ ] `docker build` completes successfully with no errors
+- [ ] Final image is under 50MB (use multi-stage build with distroless/scratch)
+- [ ] Container runs as non-root user (`USER nonroot` or equivalent)
+- [ ] `HEALTHCHECK` instruction present in Dockerfile

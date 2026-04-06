@@ -97,3 +97,10 @@ Chi built-in middleware: `middleware.RequestID`, `RealIP`, `Logger`, `Recoverer`
 ## Additional Resources
 
 - [swagger-openapi.md](references/swagger-openapi.md) — go-swagger annotations, spec generation
+
+## Verification
+
+- [ ] Server timeouts configured (`ReadTimeout`, `WriteTimeout`, `IdleTimeout`)
+- [ ] Middleware applied in correct order (RequestID, Logging, Recover)
+- [ ] Chi URL params extracted with `chi.URLParam(r, "param")`
+- [ ] JSON decoding uses `DisallowUnknownFields` to reject unexpected fields

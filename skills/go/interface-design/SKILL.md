@@ -78,3 +78,10 @@ Keep interfaces small -> easy to mock. Use function-based mocks (see `go/testing
 ## Additional Resources
 
 - [anti-patterns.md](references/anti-patterns.md) — premature abstraction, wrong package, returning interfaces
+
+## Verification
+
+- [ ] Interfaces defined at the consumer side, not the implementation package
+- [ ] Compile-time interface checks present (`var _ I = (*T)(nil)`)
+- [ ] Interfaces have 1-3 methods each (split larger interfaces via composition)
+- [ ] Functions accept interfaces and return concrete types

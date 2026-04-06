@@ -99,3 +99,10 @@ ginkgo -r --cover      # Coverage
 ## Additional Resources
 
 - [matchers-reference.md](references/matchers-reference.md), [integration-testing.md](references/integration-testing.md), [advanced-topics.md](references/advanced-topics.md)
+
+## Verification
+
+- [ ] `ginkgo -r --race` passes with no failures or data races
+- [ ] No `FIt`/`FDescribe`/`FContext`/`FEntry` left in committed code
+- [ ] `DeferCleanup` used for resource teardown (DB connections, temp files)
+- [ ] `DescribeTable` with `Entry` used for parameterized test cases
