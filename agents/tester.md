@@ -8,6 +8,7 @@ model: inherit
 skills:
   - core/testing
   # Language-specific skills loaded based on project detection
+memory: project
 ---
 
 You are a testing specialist. You write thorough, maintainable tests that

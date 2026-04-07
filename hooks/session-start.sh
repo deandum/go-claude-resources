@@ -10,7 +10,7 @@ DETECTED_LANGS=()
 [ -f "go.mod" ] && DETECTED_LANGS+=("go")
 [ -f "angular.json" ] && DETECTED_LANGS+=("angular")
 [ -f "Cargo.toml" ] && DETECTED_LANGS+=("rust")
-[ -f "pyproject.toml" ] || [ -f "requirements.txt" ] && DETECTED_LANGS+=("python")
+{ [ -f "pyproject.toml" ] || [ -f "requirements.txt" ]; } && DETECTED_LANGS+=("python")
 if [ -f "package.json" ] && [ ! -f "angular.json" ]; then
   DETECTED_LANGS+=("node")
 fi
@@ -39,9 +39,6 @@ if [ -f "$LEARNINGS_FILE" ]; then
     echo "$line" | python3 -c "import sys,json; print(json.loads(sys.stdin.read()).get('learning',''))" 2>/dev/null
   done | tr '\n' '; ' | sed 's/; $//')
 fi
-
-# Export buffer path for agents to write learnings during session
-export CLAUDE_LEARNINGS_BUFFER="/tmp/claude-learnings-${PROJECT_SLUG}-$$"
 
 # Check for recommended codebase exploration tools
 TOOLS_MISSING=()

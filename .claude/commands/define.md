@@ -2,13 +2,11 @@
 description: Analyze task requirements and generate a structured spec
 ---
 
-Use the critic agent first to analyze this task. Read relevant code.
-Challenge requirements for clarity, completeness, and feasibility.
-Surface all assumptions explicitly. Identify XY problems and scope creep.
+Use the lead agent for this task. The lead will:
+1. Spawn critic to clarify requirements and identify gaps
+2. Generate a structured spec file (SPEC-[task-slug].md)
+3. Present the spec for approval before any implementation
 
-Then use the lead agent to generate a structured spec file (SPEC-[task-slug].md)
-following the spec-generation skill template. The spec must include:
-Objective, Assumptions, Scope, Technical Approach, Subtasks (in waves),
+The spec includes: Objective, Assumptions, Scope, Subtasks (in waves),
 Commands, Boundaries (always/ask-first/never), and Success Criteria.
-
-Present the spec to me for approval before any implementation begins.
+Do not proceed to implementation without spec approval.

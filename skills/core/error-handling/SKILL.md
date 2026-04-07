@@ -19,7 +19,7 @@ Errors are values. Handle them gracefully, not just check them.
 
 ## When NOT to Use
 
-- Writing language-specific error code (use lang/error-handling)
+- Writing language-specific error code (use `<lang>/error-handling` skill)
 - Simple scripts with no error propagation needs
 
 ## Core Process

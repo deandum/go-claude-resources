@@ -19,7 +19,7 @@ Clear is better than clever. Every line should be immediately understandable.
 
 ## When NOT to Use
 
-- Implementation work (use lang/style for language-specific conventions)
+- Implementation work (use `<lang>/style` skill for language-specific conventions)
 - Architecture decisions (use project-structure skill)
 
 ## Core Principles

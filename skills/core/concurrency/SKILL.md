@@ -22,7 +22,7 @@ Concurrency is not parallelism.
 
 - Single-threaded sequential code
 - Simple request handlers with no background work
-- Writing language-specific concurrent code (use lang/concurrency)
+- Writing language-specific concurrent code (use `<lang>/concurrency` skill)
 
 ## Core Process
 

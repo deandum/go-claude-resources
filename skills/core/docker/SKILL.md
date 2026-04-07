@@ -20,7 +20,7 @@ Build small, secure, production-ready containers.
 ## When NOT to Use
 
 - Local development without containers
-- Writing language-specific build stages (use lang/docker)
+- Writing language-specific build stages (use `<lang>/docker` skill)
 
 ## Core Process
 

@@ -8,6 +8,7 @@ model: inherit
 skills:
   - core/error-handling
   # Language-specific skills loaded based on project detection
+memory: project
 ---
 
 You are a CLI development specialist. You build well-structured command-line tools.

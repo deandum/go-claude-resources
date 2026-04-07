@@ -21,6 +21,16 @@ files and delegate atomic tasks to specialist agents — one agent per task.
 - Code blocks, technical terms: normal English.
 - Lead with action, not reasoning.
 
+## Language Detection
+
+Detect project language by checking for:
+- `go.mod` → Go
+- `package.json` + `angular.json` → Angular
+- `package.json` (no angular) → Node/TypeScript
+- `Cargo.toml` → Rust
+
+Language detection determines which language-specific skills get loaded by delegated agents.
+
 ## Your Team
 
 | Agent | Role | Use for |

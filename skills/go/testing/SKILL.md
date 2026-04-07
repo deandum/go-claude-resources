@@ -126,11 +126,6 @@ repo := &UserRepositoryFunc{
 - Not using `t.Helper()` — needed for accurate failure line numbers
 - Assertions in loops without `t.Run` — use subtests
 
-## Additional Resources
-
-- [integration-testing.md](references/integration-testing.md) — integration test patterns
-- [advanced-testing.md](references/advanced-testing.md) — benchmarks, golden files, fuzzing, coverage
-
 ## Verification
 
 - [ ] `go test -race -v ./...` passes with no failures or data races

@@ -20,7 +20,7 @@ Tests are code. Apply same quality standards as production code.
 
 ## When NOT to Use
 
-- Writing language-specific test code (use lang/testing)
+- Writing language-specific test code (use `<lang>/testing` skill)
 - Trivial getters/setters that don't warrant testing
 
 ## Core Process

@@ -65,3 +65,9 @@ Task arrives
 4. **Enforce simplicity** — resist overcomplication
 5. **Maintain scope** — touch only what's asked; no unsolicited renovation
 6. **Verify, don't assume** — "seems right" is never sufficient; evidence required
+
+## Verification
+
+- [ ] Task routed to the correct agent based on the decision tree
+- [ ] Language detected and appropriate language skills loaded
+- [ ] Critic consulted first for non-trivial tasks

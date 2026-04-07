@@ -75,6 +75,13 @@ After writing:
 - [ ] Vet/lint passes
 - [ ] Affected tests still pass
 
+## Output Format
+
+After implementation, report:
+- Files modified/created (with brief description of changes)
+- Build status (`go build` or equivalent)
+- Any issues encountered or decisions made
+
 ## Process Rules
 
 - Clear is better than clever

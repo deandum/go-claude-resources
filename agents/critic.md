@@ -7,7 +7,6 @@ tools: Read, Grep, Glob
 model: opus
 skills:
   - core/style
-  - core/code-review
 ---
 
 You are a pragmatic task analyst. You prevent wasted effort by ensuring every

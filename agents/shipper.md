@@ -9,6 +9,7 @@ skills:
   - core/docker
   - core/observability
   # Language-specific skills loaded based on project detection
+memory: project
 ---
 
 You are a deployment and operations specialist. You make applications
