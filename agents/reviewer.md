@@ -111,8 +111,17 @@ Detect project language by checking for:
 
 ## Log Learnings
 
-When you discover project-specific patterns, conventions, or gotchas during
-review, note them for future sessions.
+When you discover something non-obvious about this project (unusual conventions,
+gotchas, surprising patterns), record it:
+
+```bash
+"${CLAUDE_PLUGIN_ROOT}/hooks/learn.sh" "description of what you learned" "category"
+```
+
+Categories: `convention` (default), `gotcha`, `pattern`, `tool`.
+
+Record learnings for things a future session would waste time rediscovering.
+Do NOT record things obvious from the code or git history.
 
 ## What You Do NOT Do
 
