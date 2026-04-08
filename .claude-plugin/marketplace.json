@@ -12,7 +12,7 @@
       "name": "core-skills",
       "description": "Language-agnostic process skills covering error handling, testing strategy, code review, API design, concurrency, observability, Docker, project structure, and code style",
       "source": "./",
-      "strict": false,
+      "strict": true,
       "skills": [
         "./skills/core/skill-discovery",
         "./skills/core/spec-generation",
@@ -33,7 +33,7 @@
       "name": "go-skills",
       "description": "Go-specific implementation patterns for error handling, testing, concurrency, context, database, interfaces, modules, CLI, API design, observability, Docker, and project scaffolding",
       "source": "./",
-      "strict": false,
+      "strict": true,
       "skills": [
         "./skills/go/api-design",
         "./skills/go/cli",
