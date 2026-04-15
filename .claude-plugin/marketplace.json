@@ -1,35 +1,74 @@
 {
-	"name": "go-claude-resources",
-	"owner": {
-		"name": "Dean Dumitru"
-	},
-	"metadata": {
-		"description": "Claude Code agents and skills for Go development",
-		"version": "1.0.0"
-	},
-	"plugins": [
-		{
-			"name": "go-skills",
-			"description": "Topic-specific skills for Go development covering style, testing, error handling, concurrency, API design, CLI building, database patterns, Docker, observability, and more",
-			"source": "./",
-			"strict": false,
-			"skills": [
-				"./skills/go-api-design",
-				"./skills/go-cli",
-				"./skills/go-code-review",
-				"./skills/go-concurrency",
-				"./skills/go-context",
-				"./skills/go-database",
-				"./skills/go-docker",
-				"./skills/go-error-handling",
-				"./skills/go-interface-design",
-				"./skills/go-modules",
-				"./skills/go-observability",
-				"./skills/go-project-init",
-				"./skills/go-style",
-				"./skills/go-testing",
-				"./skills/go-testing-with-framework"
-			]
-		}
-	]
+  "name": "claude-resources",
+  "owner": {
+    "name": "Dean Dumitru"
+  },
+  "metadata": {
+    "description": "Multi-language Claude Code agents and skills for production-grade development",
+    "version": "3.0.0"
+  },
+  "plugins": [
+    {
+      "name": "core-skills",
+      "description": "Language-agnostic process skills covering error handling, testing strategy, code review, API design, concurrency, observability, Docker, project structure, and code style",
+      "source": "./",
+      "strict": true,
+      "skills": [
+        "./skills/core/skill-discovery",
+        "./skills/core/spec-generation",
+        "./skills/core/api-design",
+        "./skills/core/code-review",
+        "./skills/core/concurrency",
+        "./skills/core/debugging",
+        "./skills/core/docker",
+        "./skills/core/documentation",
+        "./skills/core/error-handling",
+        "./skills/core/git-workflow",
+        "./skills/core/idea-refine",
+        "./skills/core/observability",
+        "./skills/core/performance",
+        "./skills/core/project-structure",
+        "./skills/core/security",
+        "./skills/core/simplification",
+        "./skills/core/style",
+        "./skills/core/testing",
+        "./skills/core/token-efficiency"
+      ]
+    },
+    {
+      "name": "go-skills",
+      "description": "Go-specific implementation patterns for error handling, testing, concurrency, context, database, interfaces, modules, CLI, API design, observability, Docker, and project scaffolding",
+      "source": "./",
+      "strict": true,
+      "skills": [
+        "./skills/go/api-design",
+        "./skills/go/cli",
+        "./skills/go/code-review",
+        "./skills/go/concurrency",
+        "./skills/go/context",
+        "./skills/go/database",
+        "./skills/go/docker",
+        "./skills/go/error-handling",
+        "./skills/go/interface-design",
+        "./skills/go/modules",
+        "./skills/go/observability",
+        "./skills/go/project-init",
+        "./skills/go/style",
+        "./skills/go/testing",
+        "./skills/go/testing-with-framework"
+      ]
+    },
+    {
+      "name": "ops-skills",
+      "description": "Opt-in external-write skills: git push, PR creation, release publishing, container registry push. NOT enabled by default — install only when the project authorizes Claude to write to external services.",
+      "source": "./",
+      "strict": true,
+      "skills": [
+        "./skills/ops/git-remote",
+        "./skills/ops/pull-requests",
+        "./skills/ops/release",
+        "./skills/ops/registry"
+      ]
+    }
+  ]
 }
