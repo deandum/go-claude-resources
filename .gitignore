@@ -32,3 +32,10 @@ Thumbs.db
 # Build output
 /bin/
 /dist/
+
+# Certificates/keys
+*.pem
+*.key
+
+# Node
+node_modules/

@@ -1,0 +1,11 @@
+{
+  "name": "claude-resources",
+  "description": "Multi-language spec-driven development framework with agents and skills for production-grade development",
+  "version": "3.0.0",
+  "author": {
+    "name": "Dean Dumitru"
+  },
+  "repository": "https://github.com/deandumitru/claude-resources",
+  "license": "MIT",
+  "commands": "./.claude/commands"
+}

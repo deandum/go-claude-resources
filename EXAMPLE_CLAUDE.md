@@ -4,7 +4,8 @@
 
 ## Tech Stack
 
-- **Language:** Go 1.23+
+<!-- Adjust for your language/framework. Remove or add lines as needed. -->
+- **Language:** Go 1.24+
 - **Router:** chi
 - **Database:** MySQL with sqlx
 - **Config:** envconfig (services) / Viper (CLI)
@@ -14,26 +15,76 @@
 - **Testing:** stdlib (default) or Ginkgo/Gomega (if adopted)
 - **Linting:** golangci-lint
 
+## Commands
+
+<!-- These are the actual commands Claude should run. Keep them accurate. -->
+```bash
+# Build
+go build -o bin/myservice ./cmd/myservice
+
+# Test (with race detection)
+go test -race -v ./...
+
+# Lint
+golangci-lint run
+
+# Dev (local run)
+go run ./cmd/myservice
+```
+
 ## Agent Workflow
 
-**MANDATORY: Every user prompt MUST be routed to the go-critic agent first.** Do not begin any implementation, design, or analysis work until go-critic has analyzed the request and produced a structured task definition. No exceptions. If go-critic determines the task is already clear and well-scoped, it will say so and you may proceed immediately. If it finds gaps, resolve them before moving on.
+<!-- This maps slash commands to your project's workflow.
+     Adjust if you skip certain phases or use them differently. -->
 
-After go-critic approves the task, use the appropriate agents:
+Use slash commands as entry points:
 
-1. **go-critic** - ALWAYS FIRST. Analyzes every prompt for clarity, completeness, and feasibility.
-2. **go-architect** - Design phase. Package layout, interfaces, API surface. Use for new projects or structural changes.
-3. **go-builder** - Implementation. Writes the application code following established patterns.
-4. **go-cli-builder** - CLI-specific implementation with Cobra. Use instead of go-builder for CLI commands.
-5. **go-tester** - Write and run tests after implementation.
-6. **go-reviewer** - Code review. Read-only. Run after implementation and testing.
-7. **go-shipper** - Containerization and observability. Dockerfile, logging, metrics, health checks.
+1. `/ideate` — Refine a vague idea into a clear task statement
+2. `/define` — Clarify requirements, generate structured SPEC
+3. `/plan` — Design architecture: package layout, interfaces, API surfaces
+4. `/build` — Implement code following the SPEC and existing patterns
+5. `/test` — Write tests after implementation. Prove-it pattern for bugs.
+6. `/review` — Five-axis code review: correctness, readability, architecture, security, performance
+7. `/ship` — Docker, logging, metrics, health checks
+8. `/orchestrate` — Complex multi-step tasks: decompose into SPEC + waves
+9. `/compact` — Adjust output verbosity: standard (default), compressed, or minimal
 
-## Do NOT
+## Project Conventions
 
-- Add features, abstractions, or "improvements" that weren't asked for
-- Create helpers or utilities for one-time operations
-- Add comments to code you didn't change or the code that is self documenting. Comments should be for critical decisions.
-- Use `interface{}` / `any` when a concrete type or generic will do
-- Run as root in containers
-- Hardcode credentials, connection strings, or secrets
-- Commit generated files, binaries, or `.env` files
+<!-- Add project-specific patterns that agents should follow.
+     These help agents match your codebase style from the start. -->
+
+- [e.g., All HTTP handlers live in internal/api/handlers/]
+- [e.g., Repository interfaces are defined in the service package, not the repo package]
+- [e.g., Error messages are lowercase, no punctuation]
+- [e.g., Feature flags use the internal/flags package]
+
+## Spec Files
+
+<!-- Where SPEC files are stored and naming conventions. -->
+
+- Location: `specs/` directory in project root
+- Naming: `SPEC-[task-name].md` (kebab-case)
+- Approved specs are committed to version control
+
+## Boundaries
+
+### Always do
+- Run tests before commits
+- Follow naming conventions from codebase
+- Validate inputs at HTTP boundary
+- Wrap errors with operation context
+- Update spec if scope changes
+
+### Ask first
+- Database schema changes
+- Adding external dependencies
+- Changing CI/CD configuration
+- Removing existing code or tests
+
+### Never do
+- Commit secrets, credentials, or .env files
+- Run containers as root
+- Hardcode connection strings
+- Add features not in the spec
+- Skip the critic/define step for non-trivial tasks
