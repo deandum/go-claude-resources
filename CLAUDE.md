@@ -6,14 +6,14 @@ Multi-language spec-driven development framework. Core skills (language-agnostic
 
 ```
 skills/
-├── core/           # 19 language-agnostic workflow skills (default)
+├── core/           # 20 language-agnostic workflow skills (default)
 ├── go/             # 15 Go implementation skills (default)
 └── ops/            # 4 opt-in external-write skills (NOT enabled by default)
-agents/             # 8 specialist agents
+agents/             # 9 specialist agents
 hooks/              # Session lifecycle + learning system + validators
 .claude/commands/   # 10 slash commands
 .claude-plugin/     # Plugin manifest + marketplace registry (3 plugin groups)
-docs/               # Deep-dive documentation
+docs/               # Deep-dive documentation + docs/specs/<slug>/ spec directories
 references/         # Cross-cutting reference material
 ```
 
@@ -23,7 +23,7 @@ references/         # Cross-cutting reference material
 
 | Phase | Core Skills |
 |-------|-------------|
-| Define | idea-refine, spec-generation, skill-discovery |
+| Define | idea-refine, discovery, spec-generation, skill-discovery |
 | Plan | project-structure, api-design, documentation |
 | Build | error-handling, concurrency, style, debugging |
 | Test | testing |
@@ -39,7 +39,7 @@ Every core skill has YAML frontmatter (`name`, `description`) and follows: When 
 ### Naming
 - Skill dirs: `lowercase-kebab-case`
 - Each skill: one `SKILL.md` file
-- Core skills: no supporting files unless content exceeds ~100 lines
+- Core skills: no supporting files unless content exceeds ~100 lines. `core/spec-generation/references/` is an accepted exception — it ships four spec-directory templates (spec, discovery, critique, group-log) that lead copies into `docs/specs/<slug>/` on every `/define` invocation.
 - Language skills: may have `references/` and `templates/` subdirs
 
 ### Frontmatter

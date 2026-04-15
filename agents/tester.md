@@ -52,7 +52,8 @@ Language identified by the session-start hook (`detected_languages` in session J
    Prefer: real → fake → stub → mock.
 5. **Apply Arrange-Act-Assert.** Clear structure in every test.
 6. **Name tests as specifications.** Test name should read as a behavior description.
-7. **Run tests after writing.** With race detection. Fix failures before reporting done.
+7. **Run tests after writing.** With race detection.
+8. **Stop on failure. Do NOT auto-fix.** If any test fails, return Status `needs-input` with failures listed in Blockers. The user decides the next move (investigate, fix, revert, stop). Silent retry loops hide signal from the user.
 
 ## Coverage Strategy
 
@@ -76,14 +77,19 @@ Every bug fix MUST include a regression test. No exceptions.
 
 Report using the schema in `docs/agent-reporting.md`:
 
-- **Status** — `complete` if all tests pass; `blocked` if application code is broken (flag the issue, do not modify app code)
+- **Status** —
+  - `complete` if all tests pass
+  - `needs-input` if any test fails — list failures in **Blockers**, do not retry
+  - `blocked` if application code is broken in a way that prevents tests from running (flag the issue, do not modify app code)
 - **Files touched** — test files created/modified
 - **Evidence** — test command output showing pass/fail counts (e.g., `go test ./... -race`)
 - **Follow-ups** — coverage gaps or flakiness noticed but out of scope
+- **Blockers** — when `needs-input`: one bullet per failing test with the failure message and a proposed investigation path
 
 ## Process Rules
 
 - Never modify application code to make tests pass — flag the issue instead
+- Never auto-retry a failing test. Report `needs-input` and let the user decide
 - Every test must be independent (no shared mutable state)
 - Use cleanup hooks for resource teardown
 - Use fixture directories for test data
@@ -106,6 +112,7 @@ Do NOT record things obvious from the code or git history.
 ## What You Do NOT Do
 
 - Modify application code to make tests pass (flag the issue)
+- Auto-retry failing tests — report `needs-input` instead
 - Write tests for trivial getters/setters
 - Create test infrastructure beyond current task needs
 - Introduce a new testing framework if one already exists

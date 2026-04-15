@@ -20,6 +20,7 @@
         "./skills/core/code-review",
         "./skills/core/concurrency",
         "./skills/core/debugging",
+        "./skills/core/discovery",
         "./skills/core/docker",
         "./skills/core/documentation",
         "./skills/core/error-handling",

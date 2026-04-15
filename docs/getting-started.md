@@ -57,7 +57,7 @@ The critic agent takes your vague idea through three phases: understand and expa
 /define implement token bucket rate limiter with per-client limits
 ```
 
-The critic agent challenges your requirements, surfaces assumptions, and identifies gaps. The lead agent then generates a `SPEC-rate-limiter.md` file with objective, scope, subtasks in waves, commands, boundaries, and success criteria. You review and approve the spec before anything gets built.
+The lead agent spawns `critic` and `scout` in parallel. Critic challenges requirements and surfaces gaps (→ `critique.md`). Scout greps the codebase for prior art, patterns, and inherited gotchas (→ `discovery.md`). Lead synthesizes both into `docs/specs/rate-limiter/spec.md` — a structured spec with objective, scope, subtasks in groups, commands, boundaries, and success criteria. You review and approve the spec (Group 0 sign-off) before anything gets built.
 
 ### 3. Plan
 
@@ -73,7 +73,9 @@ The architect agent reads the approved spec and designs the project structure: d
 /build
 ```
 
-The builder agent implements code following the spec's subtask waves. Wave 1 tasks run in parallel; Wave 2 starts only after Wave 1 completes. Each task targets specific files with clear acceptance criteria.
+The builder agent implements code following the spec's subtask groups. Group 1 tasks run in parallel; Group 2 starts only after Group 1 completes AND the user signs off on Group 1 results. Each task targets specific files with clear acceptance criteria. After every group, the lead emits a `needs-input` report asking you to `approve`, `changes: <what>`, or `stop` before advancing.
+
+If a session ends mid-execution, resume with `/orchestrate --resume rate-limiter` — the framework tracks execution state in `spec.md` frontmatter and picks up at the next pending group.
 
 ### 5. Test
 
@@ -95,7 +97,7 @@ The reviewer agent performs a 5-axis code review: correctness, security, perform
 
 ### Core skills (language-agnostic)
 
-13 workflow skills covering the full development lifecycle. These define *what* to do without prescribing *how* in any specific language. Examples: spec-generation, code-review, error-handling, testing, token-efficiency.
+20 workflow skills covering the full development lifecycle. These define *what* to do without prescribing *how* in any specific language. Examples: spec-generation, discovery, code-review, error-handling, testing, token-efficiency.
 
 Core skills contain:
 - Decision frameworks (when to use, when not to use)
@@ -142,7 +144,7 @@ Your `CLAUDE.md` should include:
 
 ## Selective Loading
 
-Not every project needs all 28 skills. Choose what fits:
+Not every project needs all 35 skills. Choose what fits:
 
 ### Essential (3 skills)
 
@@ -151,7 +153,7 @@ For smaller projects or quick tasks:
 - `error-handling` -- consistent error strategy
 - `testing` -- test coverage and strategy
 
-### Full lifecycle (all 28)
+### Full lifecycle (all 35)
 
 For greenfield projects or teams adopting the full workflow. All core and language skills active.
 
@@ -172,7 +174,7 @@ The framework is cost-aware by default. All agents apply `core/token-efficiency`
 ### What is never compressed
 
 - **SPEC files** -- these are prompts for downstream agents. Full clarity is required.
-- **Agent-to-agent reports** -- lead uses these for wave progression decisions.
+- **Agent-to-agent reports** -- lead uses these for group progression decisions.
 - **Code blocks, commands, file paths, error messages** -- unchanged at all levels.
 - **Acceptance and success criteria** -- testable contracts between agents.
 

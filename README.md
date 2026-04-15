@@ -61,13 +61,13 @@ See [Getting Started](docs/getting-started.md) for a full walkthrough.
 | Command | Purpose | Agent |
 |---------|---------|-------|
 | `/ideate` | Refine a vague idea into a task ready for /define | critic |
-| `/define` | Analyze requirements, generate structured SPEC | critic + lead |
+| `/define` | Analyze requirements, generate structured SPEC | critic + scout + lead |
 | `/plan` | Design architecture and project structure | architect |
 | `/build` | Implement code following established patterns | builder / cli-builder |
 | `/test` | Write and run tests for the codebase | tester |
 | `/review` | Five-axis code review (read-only) | reviewer |
 | `/ship` | Containerize and add observability | shipper |
-| `/orchestrate` | Decompose complex task into waves of agent work | lead |
+| `/orchestrate` | Decompose complex task into groups of agent work (supports `--resume <slug>`) | lead |
 | `/learn` | Record a project-specific learning for future sessions | — |
 | `/compact` | Set output compression level for token efficiency | — |
 
@@ -75,8 +75,9 @@ See [Getting Started](docs/getting-started.md) for a full walkthrough.
 
 | Agent | Role | Scope |
 |-------|------|-------|
-| **critic** | Challenges vague requirements, surfaces assumptions | Runs first. Does NOT write code. |
-| **lead** | Produces SPEC files, decomposes tasks, delegates to team | Coordinates. Never writes code directly. |
+| **critic** | Challenges vague requirements, surfaces assumptions, XY problems | Runs with scout during `/define`. Does NOT write code. |
+| **scout** | Grounds the spec in existing code — prior art, patterns, inherited gotchas | Runs in parallel with critic. Read-oriented. |
+| **lead** | Produces spec directories, decomposes tasks, delegates to team, per-group sign-off | Coordinates. Never writes code directly. |
 | **architect** | Designs package layout, interfaces, API surfaces | Before implementation. |
 | **builder** | Implements handlers, services, repositories, workers | Follows existing patterns. |
 | **cli-builder** | Builds CLI commands, flags, config handling | Cobra, Viper, stdlib. |
@@ -88,13 +89,13 @@ All agents auto-detect project language and load appropriate skills.
 
 ## Skills
 
-### Core (19 language-agnostic workflow skills)
+### Core (20 language-agnostic workflow skills)
 
 Organized by development phase:
 
 | Phase | Skills | Purpose |
 |-------|--------|---------|
-| **Define** | `idea-refine` `spec-generation` `skill-discovery` | Clarify requirements, generate specs |
+| **Define** | `idea-refine` `discovery` `spec-generation` `skill-discovery` | Clarify requirements, ground in existing code, generate specs |
 | **Plan** | `project-structure` `api-design` `documentation` | Design architecture, interfaces, record decisions |
 | **Build** | `error-handling` `concurrency` `style` `debugging` | Implementation discipline |
 | **Test** | `testing` | Test strategy and verification |
@@ -145,14 +146,20 @@ claude plugin add ops-skills
 Every non-trivial task follows a structured flow:
 
 1. `/ideate` (optional) — Refine a vague idea into a clear task statement
-2. `/define` — Critic challenges requirements, lead generates `SPEC-[task].md`
+2. `/define` — Critic challenges requirements AND scout grounds them in existing code (parallel), lead synthesizes `docs/specs/<slug>/spec.md`
 3. `/plan` — Architect designs package layout, interfaces, dependency graph
 4. `/build` — Builder implements code following the spec and existing patterns
 5. `/test` — Tester writes tests, applies prove-it pattern for bugs
 6. `/review` — Reviewer does five-axis review (correctness, readability, architecture, security, performance)
 7. `/ship` — Shipper adds Docker, logging, metrics, health checks
 
-The SPEC file is the contract. Agents consume it directly. If scope changes, update the spec first. See [Workflow](docs/workflow.md) for the full deep-dive.
+The spec is the contract. Each task lives in a directory `docs/specs/<slug>/` with four artifacts: `spec.md` (the contract), `discovery.md` (scout's findings), `critique.md` (critic's analysis), and `group-log.md` (append-only record of per-group sign-offs). The spec frontmatter (`status`, `current_group`, `total_groups`) tracks execution state so sessions can resume cleanly. If scope changes, update the spec first. See [Workflow](docs/workflow.md) for the full deep-dive.
+
+### Per-group sign-off and resumption
+
+`/orchestrate` runs groups with an explicit approval checkpoint after each one. After every group completes, lead emits a `needs-input` report summarizing what changed and asking `approve`, `changes: <what>`, or `stop`. The user sees the progress incrementally instead of only at the end.
+
+A session that ends mid-execution leaves the spec directory in a recoverable state. On the next session start, `session-start.sh` surfaces the in-progress specs via the `active_specs` JSON field. Resume from the last approved group with `/orchestrate --resume <slug>`.
 
 ## Operational Learning
 
@@ -180,9 +187,11 @@ See [Operational Learning](docs/operational-learning.md) for full documentation.
 
 ```
 skills/
-├── core/              # 19 language-agnostic workflow skills
+├── core/              # 20 language-agnostic workflow skills
 │   ├── idea-refine/
+│   ├── discovery/
 │   ├── spec-generation/
+│   │   └── references/ # Templates: spec.md, discovery.md, critique.md, group-log.md
 │   ├── skill-discovery/
 │   ├── token-efficiency/
 │   └── ...
@@ -191,14 +200,16 @@ skills/
     ├── testing/
     ├── concurrency/
     └── ...
-agents/                # 8 specialist agents
+agents/                # 9 specialist agents (critic, scout, lead, architect, ...)
 hooks/                 # Session lifecycle + learning system
-├── session-start.sh   # Language detection, skill loading, learning injection
+├── session-start.sh   # Language detection, skill loading, learning injection, active_specs
 ├── session-end.sh     # Learning collection and persistence
 └── learn.sh           # Record a learning during a session
 .claude/commands/      # 10 slash commands (entry points)
 .claude-plugin/        # Plugin manifest + marketplace registry
-docs/                  # Deep-dive documentation
+docs/
+├── specs/             # Per-task spec directories (created by /define)
+└── ...                # Deep-dive documentation
 references/            # Cross-cutting reference material
 ```
 

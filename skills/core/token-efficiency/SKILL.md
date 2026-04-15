@@ -72,7 +72,7 @@ Everything in Compressed, plus:
 |---------|-----------|-----|
 | Agent → human output | Yes, active level | User-facing prose, not agent instructions |
 | SPEC files | **Never** | Consumed by agents as prompts — full clarity required |
-| Agent → agent reports | **Never** | Lead uses these for wave progression decisions |
+| Agent → agent reports | **Never** | Lead uses these for group progression decisions |
 | Review findings | **Never** | Builder consumes these for fixes |
 | Code blocks | **Never** | Byte-for-byte preservation |
 | Commands with flags | **Never** | Agents execute literally |

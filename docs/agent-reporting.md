@@ -1,8 +1,8 @@
 # Agent Reporting Protocol
 
-How specialist agents return results to the `lead` agent (in multi-wave work) or directly to the user (in single-agent runs).
+How specialist agents return results to the `lead` agent (in multi-group work) or directly to the user (in single-agent runs).
 
-All code-writing and review agents — `builder`, `cli-builder`, `tester`, `reviewer`, `shipper`, `architect` — end their work with a structured report in this format. The `lead` agent parses each report and validates results against the spec's success criteria before spawning the next wave.
+All code-writing and review agents — `builder`, `cli-builder`, `tester`, `reviewer`, `shipper`, `architect` — end their work with a structured report in this format. The `lead` agent parses each report and validates results against the spec's success criteria before spawning the next group.
 
 For the full per-agent role reference (tools, skills, when to use), see [agents.md](agents.md).
 
@@ -16,7 +16,12 @@ One of:
 
 - **`complete`** — task finished, acceptance criteria met, evidence attached
 - **`blocked`** — cannot proceed without outside intervention; Blockers section mandatory
-- **`needs-input`** — work done but a decision is required before finalizing (e.g., two viable designs, unclear spec)
+- **`needs-input`** — work done but a decision is required before finalizing. Used in several situations:
+  - Two viable designs, unclear spec, ambiguous slug when multiple specs are active
+  - Group sign-off pauses in multi-group orchestration — see [`agents/lead.md`](../agents/lead.md) Step 5
+  - Pre-spec findings review — lead presents raw critic + scout findings as a `needs-input` report before synthesizing the spec (Step 2)
+  - **Test failures** — tester stops on first failure batch, lists failures in Blockers, does not auto-retry
+  - **Critical or Important review findings** — severity drives status; Critical/Important forces `needs-input` regardless of reviewer's opinion of the issue's realness
 
 ### Files touched
 
@@ -88,16 +93,16 @@ ok  	example/pkg/service	0.203s
 
 ## Why structured, not prose
 
-- **Lead parses it.** In multi-wave orchestration, `lead` reads each report and decides whether to proceed to the next wave. Free-form prose is ambiguous.
+- **Lead parses it.** In multi-group orchestration, `lead` reads each report and decides whether to proceed to the next group. Free-form prose is ambiguous.
 - **The report doubles as a PR description.** `Status`/`Files touched`/`Evidence` is already the body of a good commit message.
-- **Follow-ups persist.** A structured follow-up field prevents drift. `lead` can fold them into the next wave's spec instead of losing them in chat scrollback.
+- **Follow-ups persist.** A structured follow-up field prevents drift. `lead` can fold them into the next group's spec instead of losing them in chat scrollback.
 - **Blockers fail loud.** When status is `blocked`, the section is mandatory — agents can't quietly stall.
 
 ## Rationalizations to avoid
 
 | Shortcut | Reality |
 |----------|---------|
-| "I'll just describe what I did in a paragraph." | Lead can't parse paragraphs into wave decisions. Use the schema. |
+| "I'll just describe what I did in a paragraph." | Lead can't parse paragraphs into group decisions. Use the schema. |
 | "Evidence is obvious from the diff." | Evidence is the command output that *proves* the diff is correct. Paste it. |
 | "No follow-ups needed." | Maybe. But did you really look? If nothing, write `_None._` — don't omit the section. |
 | "I'll report success and mention the blocker in passing." | Split: either `complete` with follow-ups, or `blocked` with Blockers. Not both. |

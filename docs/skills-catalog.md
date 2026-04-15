@@ -1,10 +1,10 @@
 # Skills Catalog
 
-A lightweight index of all 38 skills in the framework, grouped by tier and purpose.
+A lightweight index of all 39 skills in the framework, grouped by tier and purpose.
 
 This is a catalog, not a reference. Each entry has a one-line purpose and a link to the full `SKILL.md` file. For the anatomy of a skill (sections, frontmatter, style rules), see [skill-anatomy.md](skill-anatomy.md). To learn how skills load into agent context, see [architecture.md](architecture.md).
 
-## Core skills (19)
+## Core skills (20)
 
 Language-agnostic workflow skills. Grouped by phase.
 
@@ -13,7 +13,8 @@ Language-agnostic workflow skills. Grouped by phase.
 | Skill | Purpose |
 |---|---|
 | [idea-refine](../skills/core/idea-refine/SKILL.md) | Pre-spec ideation — divergent then convergent thinking, produce a "Not Doing" list. Meta-skill invoked by `/ideate`. |
-| [spec-generation](../skills/core/spec-generation/SKILL.md) | Structured SPEC template — objective, assumptions, scope, subtasks in waves, commands, boundaries, success criteria |
+| [discovery](../skills/core/discovery/SKILL.md) | Ground a task in the existing codebase before specification. Loaded by scout during `/define`. |
+| [spec-generation](../skills/core/spec-generation/SKILL.md) | Structured SPEC template and spec-directory layout — objective, assumptions, scope, subtasks in groups, commands, boundaries, success criteria, frontmatter state tracking |
 | [skill-discovery](../skills/core/skill-discovery/SKILL.md) | Decision tree for routing tasks to the right agent. Meta-skill loaded on session start, not by agents directly. |
 
 ### Plan phase

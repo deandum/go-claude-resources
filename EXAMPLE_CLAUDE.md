@@ -46,7 +46,7 @@ Use slash commands as entry points:
 5. `/test` — Write tests after implementation. Prove-it pattern for bugs.
 6. `/review` — Five-axis code review: correctness, readability, architecture, security, performance
 7. `/ship` — Docker, logging, metrics, health checks
-8. `/orchestrate` — Complex multi-step tasks: decompose into SPEC + waves
+8. `/orchestrate` — Complex multi-step tasks: decompose into SPEC + groups
 9. `/compact` — Adjust output verbosity: standard (default), compressed, or minimal
 
 ## Project Conventions
@@ -59,13 +59,18 @@ Use slash commands as entry points:
 - [e.g., Error messages are lowercase, no punctuation]
 - [e.g., Feature flags use the internal/flags package]
 
-## Spec Files
+## Spec Directories
 
-<!-- Where SPEC files are stored and naming conventions. -->
+<!-- Where spec artifacts are stored. Lead creates one directory per task. -->
 
-- Location: `specs/` directory in project root
-- Naming: `SPEC-[task-name].md` (kebab-case)
+- Location: `docs/specs/<task-slug>/` (kebab-case slug derived from task title)
+- Four artifacts per task:
+  - `spec.md` — the contract (Objective, Scope, Technical Approach, Subtasks, Boundaries, Success Criteria) with YAML frontmatter tracking `status` and `current_group`
+  - `discovery.md` — scout's findings: existing code, patterns, inherited gotchas
+  - `critique.md` — critic's analysis: gaps, XY problems, scope hazards
+  - `group-log.md` — append-only record of per-group sign-offs
 - Approved specs are committed to version control
+- Resume an interrupted task with `/orchestrate --resume <task-slug>`
 
 ## Boundaries
 

@@ -9,7 +9,7 @@ Index of the `claude-resources` framework documentation. Each entry has a one-li
 
 ## Daily use
 
-- **[workflow.md](workflow.md)** — the spec-driven workflow deep dive, SPEC file template, wave execution, scope-change protocol
+- **[workflow.md](workflow.md)** — the spec-driven workflow deep dive, SPEC file template, group execution, scope-change protocol
 - **[commands.md](commands.md)** — reference for all 10 slash commands, when to use each, example invocations
 - **[agents.md](agents.md)** — reference for all 8 specialist agents, their roles, tools, skills, when to use each
 

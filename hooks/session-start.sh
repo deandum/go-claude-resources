@@ -63,6 +63,36 @@ if [ -f "$LEARNINGS_FILE" ]; then
   RECENT_LEARNINGS="$recent"
 fi
 
+# Scan for in-progress spec directories (status != complete)
+ACTIVE_SPECS=""
+PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+SPECS_ROOT="$PROJECT_ROOT/docs/specs"
+if [ -d "$SPECS_ROOT" ]; then
+  parts=""
+  for spec_dir in "$SPECS_ROOT"/*/; do
+    [ -d "$spec_dir" ] || continue
+    slug=$(basename "$spec_dir")
+    spec_file="$spec_dir/spec.md"
+    [ -f "$spec_file" ] || continue
+
+    status=$(sed -n 's/^status:[[:space:]]*\(.*\)$/\1/p' "$spec_file" | head -n1 | sed 's/[[:space:]]*$//')
+    cw=$(sed -n 's/^current_group:[[:space:]]*\(.*\)$/\1/p' "$spec_file" | head -n1 | sed 's/[[:space:]]*$//')
+    tw=$(sed -n 's/^total_groups:[[:space:]]*\(.*\)$/\1/p' "$spec_file" | head -n1 | sed 's/[[:space:]]*$//')
+
+    case "$status" in
+      complete|"") continue ;;
+    esac
+
+    entry="${slug}:${cw}/${tw}"
+    if [ -z "$parts" ]; then
+      parts="$entry"
+    else
+      parts="$parts, $entry"
+    fi
+  done
+  ACTIVE_SPECS="$parts"
+fi
+
 # Check for recommended codebase exploration tools
 TOOLS_MISSING=()
 command -v ast-grep >/dev/null 2>&1 || TOOLS_MISSING+=("ast-grep")
@@ -95,7 +125,9 @@ cat <<JSON
   "ops_skills": "$(json_escape "$OPS_SKILLS")",
   "tools_warning": "$(json_escape "$TOOLS_MSG")",
   "recent_learnings": "$(json_escape "$RECENT_LEARNINGS")",
+  "active_specs": "$(json_escape "$ACTIVE_SPECS")",
   "style": "Apply core/token-efficiency (standard) to human-facing output only. Drop filler, lead with action, fragments ok. Code/commands/paths/specs unchanged.",
-  "external_writes_policy": "Agents MUST check ops_enabled before executing any remote-write command (git push, gh pr, docker push, deploy). When ops_enabled=false, report the intended action as a Follow-up in docs/agent-reporting.md format; do not execute."
+  "external_writes_policy": "Agents MUST check ops_enabled before executing any remote-write command (git push, gh pr, docker push, deploy). When ops_enabled=false, report the intended action as a Follow-up in docs/agent-reporting.md format; do not execute.",
+  "spec_resumption_policy": "When active_specs is non-empty, lead surfaces the in-progress specs on first response and asks the user whether to resume (/orchestrate --resume <slug>), ignore, or mark blocked. See agents/lead.md Step 0."
 }
 JSON

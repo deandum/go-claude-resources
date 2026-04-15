@@ -27,6 +27,8 @@ When a task arrives, follow the first matching branch:
 - **Vague idea or unclear requirements?**
   - Has a specific problem? → **critic** → clarify before anything else
   - Exploring or brainstorming? → **idea-refine** → then `/define`
+- **Grounding a task in existing code before spec?**
+  - **scout** → `core/discovery` → runs in parallel with critic during `/define`
 - **Complex task spanning multiple concerns?**
   - **lead** → decomposes into spec, delegates to team
 - **New project or scaffold from scratch?**
@@ -66,6 +68,7 @@ When a task arrives, follow the first matching branch:
 | Agent | When | Never |
 |-------|------|-------|
 | critic | First pass on any non-trivial task | Don't skip for "obvious" tasks |
+| scout | Discovery of existing code during `/define` | Don't use for design or code writing |
 | lead | Multi-step tasks, spec generation | Don't use for single-concern tasks |
 | architect | Structure, interfaces, API design | Don't use for implementation |
 | builder | Application code (handlers, services) | Don't use for tests or infra |

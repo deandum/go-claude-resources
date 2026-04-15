@@ -1,6 +1,6 @@
 # Agents
 
-Reference for the 8 specialist agents in the framework.
+Reference for the 9 specialist agents in the framework.
 
 Every command routes to exactly one agent. Agents are language-agnostic — they load language-specific skills dynamically from the session-start context. Each agent has a single bounded role, a fixed tool set, a pre-declared skill list, and returns results using the schema in [agent-reporting.md](agent-reporting.md).
 
@@ -8,8 +8,9 @@ Every command routes to exactly one agent. Agents are language-agnostic — they
 
 | Agent | Role | Tools | Memory | Spawned by |
 |---|---|---|---|---|
-| [critic](#critic) | Task analyst | Read, Grep, Glob, Bash | none | `/ideate`, `/define` |
-| [lead](#lead) | Project lead, spec generator, orchestrator | Read, Grep, Glob, Bash, Write, Agent | project | `/define`, `/orchestrate` |
+| [critic](#critic) | Task analyst (adversarial) | Read, Grep, Glob, Bash | none | `/ideate`, `/define`, `/orchestrate` |
+| [scout](#scout) | Discovery agent (grounds spec in existing code) | Read, Grep, Glob, Bash, Write | project | `/define`, `/orchestrate` |
+| [lead](#lead) | Project lead, spec generator, orchestrator, per-group sign-off | Read, Grep, Glob, Bash, Write, Agent | project | `/define`, `/orchestrate` |
 | [architect](#architect) | Structure and interface designer | Read, Glob, Grep, Bash, Write, Edit | project | `/plan` |
 | [builder](#builder) | Application code implementer | Read, Edit, Write, Bash, Grep, Glob | project | `/build` |
 | [cli-builder](#cli-builder) | CLI tool implementer | Read, Edit, Write, Bash, Grep, Glob | project | `/build` (CLI path) |
@@ -21,7 +22,7 @@ All agents load `core/token-efficiency` by default. Agents that write code also 
 
 ## critic
 
-**Role:** Analyzes task requests, surfaces gaps, challenges vague requirements. Does not write code.
+**Role:** Adversarial task analyst — surfaces gaps, XY problems, scope hazards. Does not write code. Discovery of existing code is scout's job.
 
 **Tools:** Read, Grep, Glob, Bash
 
@@ -30,7 +31,7 @@ All agents load `core/token-efficiency` by default. Agents that write code also 
 **Memory:** none (stateless analyst)
 
 **When to use:**
-- First pass on any non-trivial task
+- First pass on any non-trivial task, in parallel with scout
 - Before every spec generation
 - When requirements feel incomplete or contradictory
 - Proactively, before `/define`, to challenge assumptions
@@ -38,12 +39,35 @@ All agents load `core/token-efficiency` by default. Agents that write code also 
 **When NOT to use:**
 - Obvious one-line fixes
 - Tasks already specified with clear acceptance criteria
+- Prior-art surveys (that is scout's role)
 
-**Output:** Structured task definition with problem, scope, approach, out-of-scope, acceptance criteria, and risks. Uses the 5 Whys framework.
+**Output:** Structured task definition with problem, scope, approach, out-of-scope, acceptance criteria, and risks. Uses the 5 Whys framework. Within `/define`, critic writes to `docs/specs/<slug>/critique.md`.
+
+## scout
+
+**Role:** Discovery agent that grounds the spec in the existing codebase. Runs in parallel with critic during `/define` and `/orchestrate`. Read-oriented; writes exactly one file per task: `docs/specs/<slug>/discovery.md`.
+
+**Tools:** Read, Grep, Glob, Bash, Write
+
+**Core skills loaded:** `core/discovery`, `core/skill-discovery`, `core/documentation`, `core/style`, `core/token-efficiency`
+
+**Memory:** project
+
+**When to use:**
+- In parallel with critic during `/define` — every non-trivial task
+- When a task touches code that already exists
+- When session learnings flag gotchas in the task's area
+
+**When NOT to use:**
+- Greenfield projects with no existing code
+- Trivial one-line fixes where the file is already named
+- As a replacement for critic — scout does not challenge the request
+
+**Output:** `docs/specs/<slug>/discovery.md` with four sections: Existing Surface (files/functions cited with paths), Patterns to Follow, Inherited Gotchas, Handoff to lead. Every claim cites a file path — unsourced claims do not ship.
 
 ## lead
 
-**Role:** Produces SPEC files, decomposes tasks into waves, delegates to specialist agents. Does not write code.
+**Role:** Produces spec directories, decomposes tasks into groups, delegates to specialist agents, and pauses after each group for explicit user sign-off. Does not write code.
 
 **Tools:** Read, Grep, Glob, Bash, Write, `Agent` (for spawning subagents)
 
@@ -52,15 +76,16 @@ All agents load `core/token-efficiency` by default. Agents that write code also 
 **Memory:** project
 
 **When to use:**
-- Any task that needs a SPEC file
+- Any task that needs a spec directory
 - Multi-step tasks spanning multiple concerns
 - Orchestration across multiple specialist agents
+- Resumption of an in-progress spec via `/orchestrate --resume <slug>`
 
 **When NOT to use:**
 - Single-concern tasks (let the specialist handle it directly)
 - Tasks that do not need decomposition
 
-**Output:** `SPEC-[task-slug].md` in the project root, then per-wave delegation reports parsed against the spec's acceptance criteria. See [workflow.md](workflow.md) for wave execution details.
+**Output:** `docs/specs/<slug>/` directory with four artifacts (`spec.md`, `discovery.md`, `critique.md`, `group-log.md`), then per-group delegation with mandatory `needs-input` sign-off pauses. See [workflow.md](workflow.md) for group execution and resumption details.
 
 ## architect
 
@@ -149,17 +174,29 @@ All agents load `core/token-efficiency` by default. Agents that write code also 
 - Modifying application code to make tests pass (flag the issue instead)
 - Writing tests for trivial getters and setters
 
-**Output:** Test report. Status is `complete` only when tests pass. Evidence includes test command output with pass counts.
+**Output:** Test report.
+
+- Status `complete` when all tests pass.
+- Status `needs-input` when ANY test fails — failures listed verbatim in Blockers. Tester does NOT auto-retry or auto-fix; the user decides the next move (investigate, fix, revert, stop).
+- Status `blocked` when application code is broken in a way that prevents tests from running.
+
+Evidence includes test command output with pass/fail counts.
 
 ## reviewer
 
-**Role:** Performs read-only code review across five axes. Never modifies code.
+**Role:** Performs read-only code review across five axes. Never modifies code. Invoked both as an embedded mini-review after each execution group AND as a standalone reviewer via `/review`.
 
 **Tools:** Read, Grep, Glob, Bash
 
 **Core skills loaded:** `core/code-review`, `core/style`, `core/simplification`, `core/security`, `core/performance`, `core/token-efficiency`
 
 **Memory:** project
+
+**Review modes:**
+- **Mini-review (per group).** Lead spawns reviewer at the end of every execution group, scoped to that group's changed files only. Findings gate the group's sign-off.
+- **Full review (ad hoc).** Invoked by `/review` for standalone review of a diff or package, outside the group flow.
+
+Both modes use the same five-axis framework. Scope differs: mini-review reads only the files listed in the group's task reports; full review walks the full diff.
 
 **When to use:**
 - Reviewing any PR before merge
@@ -171,7 +208,12 @@ All agents load `core/token-efficiency` by default. Agents that write code also 
 - Making the changes yourself (reviewer is read-only)
 - Rubber-stamping code without walking the five axes
 
-**Output:** Review report wrapped in the agent-reporting envelope. Evidence is the review itself with severity labels (Critical, Important, Suggestion, Nit, FYI). Files touched is `_None (read-only task)._`. Status is `complete` unless the change is too large to review (in that case: `needs-input` with a splitting recommendation).
+**Output:** Review report wrapped in the agent-reporting envelope. Evidence is the review itself with severity labels (Critical, Important, Suggestion, Nit, FYI). Files touched is `_None (read-only task)._`.
+
+**Severity drives status:**
+- Critical or Important finding → Status `needs-input`. Blockers section lists each finding. Lead cannot advance past the group without explicit user acceptance.
+- Suggestion / Nit / FYI only, or no findings → Status `complete`. Lead advances.
+- Change too large to review (>1000 lines) → Status `needs-input` with splitting recommendation in Blockers.
 
 ## shipper
 

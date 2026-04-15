@@ -1,13 +1,6 @@
-# Hooks and Validators
+# Hooks
 
-Reference for the shell scripts under `hooks/`.
-
-The framework uses two kinds of scripts:
-
-1. **Lifecycle hooks** — triggered automatically by Claude Code's session events. Registered in `hooks/hooks.json`.
-2. **Validator scripts** — run manually or in CI. They enforce plumbing integrity.
-
-All hooks are pure bash (bash 4+). No python, no other runtime.
+Reference for the shell scripts under `hooks/`. All are pure bash (bash 4+). Triggered automatically by Claude Code's session events (registered in `hooks/hooks.json`) or invoked manually by agents.
 
 ## Lifecycle hooks
 
@@ -22,8 +15,9 @@ All hooks are pure bash (bash 4+). No python, no other runtime.
 3. Lists available language skills for detected languages
 4. Detects whether `skills/ops/` is populated (for the opt-in ops plugin)
 5. Reads the last 10 operational learnings from `~/.claude-resources/learnings/{project-slug}.jsonl`
-6. Checks for recommended exploration tools (`ast-grep`)
-7. Emits a single JSON object to stdout, which Claude Code injects into the session context
+6. Scans `docs/specs/*/spec.md` for in-progress specs (`status != complete`) and extracts frontmatter `current_group`/`total_groups`
+7. Checks for recommended exploration tools (`ast-grep`)
+8. Emits a single JSON object to stdout, which Claude Code injects into the session context
 
 **Output schema:**
 
@@ -37,8 +31,10 @@ All hooks are pure bash (bash 4+). No python, no other runtime.
   "ops_skills": "git-remote,pull-requests,release,registry",
   "tools_warning": "Missing recommended tools: ast-grep. See README for setup.",
   "recent_learnings": "learning 1; learning 2; ...",
+  "active_specs": "rate-limiter:2/4, cache-refactor:0/3",
   "style": "Apply core/token-efficiency (standard) to human-facing output only. ...",
-  "external_writes_policy": "Agents MUST check ops_enabled before executing any remote-write command..."
+  "external_writes_policy": "Agents MUST check ops_enabled before executing any remote-write command...",
+  "spec_resumption_policy": "When active_specs is non-empty, lead surfaces the in-progress specs..."
 }
 ```
 
@@ -54,8 +50,10 @@ All hooks are pure bash (bash 4+). No python, no other runtime.
 | `ops_skills` | string | Comma-separated ops skill names (empty if `ops_enabled=false`) |
 | `tools_warning` | string | Optional warning about missing recommended tools |
 | `recent_learnings` | string | Semicolon-joined learning texts from the last 10 JSONL entries |
+| `active_specs` | string | Comma-joined `<slug>:<current_group>/<total_groups>` tuples for in-progress specs. Empty if none. Lead agent reads this on its first response and asks whether to resume. |
 | `style` | string | Token-efficiency reminder loaded by every agent |
 | `external_writes_policy` | string | Instruction for agents to check `ops_enabled` before remote writes |
+| `spec_resumption_policy` | string | Instruction for lead to surface `active_specs` on session start |
 
 **Known limitations:**
 
@@ -107,126 +105,3 @@ All hooks are pure bash (bash 4+). No python, no other runtime.
 ```
 
 See [operational-learning.md](operational-learning.md) for the full lifecycle (when to record, what to record, how it surfaces in future sessions).
-
-## Validator scripts
-
-All validators run with zero arguments. Exit code 0 means pass, non-zero means fail. Run them individually or use the `validate-all.sh` wrapper.
-
-### validate-marketplace.sh
-
-**What it checks:** Every skill path listed in `.claude-plugin/marketplace.json` must resolve to a directory containing a `SKILL.md` file.
-
-**How to run:**
-
-```bash
-hooks/validate-marketplace.sh
-```
-
-**Exit codes:**
-
-- `0` — all skill paths resolve
-- `1` — at least one path is broken
-- `2` — marketplace.json is missing or contains no skill paths
-
-**Typical failures:**
-
-- A skill directory was renamed but `marketplace.json` still references the old path
-- A new skill path was added to `marketplace.json` before the `SKILL.md` file was created (strict-mode violation)
-
-**Fix:** match the path in `marketplace.json` to the actual directory, or create the missing `SKILL.md`.
-
-### validate-skill-anatomy.sh
-
-**What it checks:** Every skill in `skills/core/` and `skills/ops/` must contain the five required sections: `## When to Use`, `## When NOT to Use`, `## Common Rationalizations`, `## Red Flags`, `## Verification`.
-
-Meta-skills can opt out by including the exact line `<!-- meta-skill: skip-anatomy -->` anywhere in the file.
-
-**How to run:**
-
-```bash
-hooks/validate-skill-anatomy.sh
-```
-
-**Exit codes:**
-
-- `0` — all skills pass
-- `1` — at least one skill is missing a required section
-- `2` — no tier directories found
-
-**Typical failures:**
-
-- A new skill was written without one of the required sections
-- A section was renamed or reformatted in a way the grep cannot match (exact heading text is required)
-
-**Fix:** add the missing section using the exact heading text, or add the skip-anatomy marker if the file is a meta-skill.
-
-### validate-skill-references.sh
-
-**What it checks:** Every skill listed in an agent's `skills:` frontmatter must resolve to a directory containing a `SKILL.md`.
-
-**How to run:**
-
-```bash
-hooks/validate-skill-references.sh
-```
-
-**Exit codes:**
-
-- `0` — all references resolve
-- `1` — at least one broken reference
-- `2` — `agents/` directory is missing
-
-**Typical failures:**
-
-- A skill was renamed but an agent's frontmatter still references the old name
-- Typo in an agent's skill list
-
-**Fix:** match the reference to the actual skill path.
-
-### validate-agents.sh
-
-**What it checks:** Every agent name referenced in `.claude/commands/*.md` must resolve to an agent file in `agents/` by the frontmatter `name:` field.
-
-Also flags any leftover `{plugin}:{lang}-*` template strings in command files.
-
-**How to run:**
-
-```bash
-hooks/validate-agents.sh
-```
-
-**Exit codes:**
-
-- `0` — all command → agent references resolve
-- `1` — at least one broken reference, or an unresolved template string
-- `2` — `commands/` or `agents/` directory is missing
-
-**Typical failures:**
-
-- A command spawns an agent by a name that does not exist in `agents/`
-- An old-style `{plugin}:{lang}-*` template was left in a command file
-
-**Fix:** update the command to use the correct bare agent name (e.g., `reviewer`, not `{plugin}:{lang}-reviewer`).
-
-### validate-all.sh
-
-**What it does:** Runs all four validators in sequence. Reports the total number that failed. Exit code is 1 if any validator fails, 0 if all pass.
-
-**How to run:**
-
-```bash
-hooks/validate-all.sh
-```
-
-Recommended before every commit. Not wired as a git pre-commit hook — keep it opt-in so contributors choose when to enforce it.
-
-## Running the validators in CI
-
-Example CI step:
-
-```bash
-chmod +x hooks/*.sh
-hooks/validate-all.sh
-```
-
-If any validator fails, CI fails. All four are idempotent and side-effect-free — they only read files.

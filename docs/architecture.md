@@ -23,7 +23,7 @@ The framework is packaged as three plugins in `.claude-plugin/marketplace.json`:
 
 | Plugin | What it contains | Default |
 |---|---|---|
-| `core-skills` | 19 language-agnostic workflow skills | enabled |
+| `core-skills` | 20 language-agnostic workflow skills | enabled |
 | `go-skills` | 15 Go-specific implementation skills | enabled when `go.mod` is present |
 | `ops-skills` | 4 external-write skills (push, PR, release, registry) | **opt-in** |
 
@@ -51,12 +51,13 @@ For the full list of skills in each tier, see [skills-catalog.md](skills-catalog
 
 ## Agents
 
-The framework has 8 specialist agents. Each has a single bounded role.
+The framework has 9 specialist agents. Each has a single bounded role.
 
 | Agent | Role |
 |---|---|
-| `critic` | Task analyst — challenges requirements, surfaces gaps |
-| `lead` | Project lead — generates SPEC files, orchestrates waves |
+| `critic` | Task analyst — challenges requirements, surfaces gaps (adversarial) |
+| `scout` | Discovery agent — grounds the spec in existing code (parallel with critic) |
+| `lead` | Project lead — generates spec directories, orchestrates groups, per-group sign-off |
 | `architect` | Designer — package structure, interfaces, API surfaces |
 | `builder` | Application code implementer |
 | `cli-builder` | CLI tool implementer |
@@ -107,45 +108,33 @@ All three are pure bash. No python, no other runtime. Bash 4+ is required for pa
 
 The session-start hook is the framework's single source of truth for language detection and session context. The JSON it emits is visible to every agent in the session. See [hooks.md](hooks.md) for the full schema.
 
-## Validators
-
-Five shell scripts enforce plumbing integrity. They run manually or in CI.
-
-| Validator | Checks |
-|---|---|
-| `validate-marketplace.sh` | Every skill path in `marketplace.json` resolves to a `SKILL.md` |
-| `validate-skill-anatomy.sh` | Every core and ops skill has the 5 required sections |
-| `validate-skill-references.sh` | Every agent's `skills:` list resolves |
-| `validate-agents.sh` | Every command's agent reference resolves; no leftover template strings |
-| `validate-all.sh` | Runs all four and reports total failures |
-
-Contributors run `validate-all.sh` before committing. The validators are opt-in (not wired as a git pre-commit hook) so contributors choose when to enforce them. See [hooks.md](hooks.md) for per-validator details and typical failures.
-
 ## How it fits together
 
 A concrete flow, start to finish:
 
-1. **A session starts.** Claude Code fires the `SessionStart` event. `session-start.sh` runs, detects the project language, lists available skills, loads recent operational learnings, and emits a JSON block into the session context.
+1. **A session starts.** Claude Code fires the `SessionStart` event. `session-start.sh` runs, detects the project language, lists available skills, loads recent operational learnings, scans `docs/specs/*/spec.md` for in-progress tasks (emits `active_specs`), and emits a JSON block into the session context.
 
 2. **The user types a slash command.** Say `/define build a rate limiter`. The command file in `.claude/commands/define.md` instructs Claude to spawn the `lead` agent.
 
-3. **The lead agent reads the session context.** It sees `detected_languages: "go"` and knows to load Go-specific skills from its `## Language-Specific Skills` section.
+3. **The lead agent reads the session context.** It sees `detected_languages: "go"` and knows to load Go-specific skills from its `## Language-Specific Skills` section. It also checks `active_specs` — if any are in progress, it surfaces them before starting fresh work.
 
-4. **The lead spawns the critic.** The critic clarifies requirements, surfaces gaps, and returns a structured task definition.
+4. **The lead spawns critic AND scout in parallel.** Critic challenges the request (writes `critique.md`). Scout greps the codebase, reads similar features, cites file paths for every finding (writes `discovery.md`). They do not coordinate mid-task; lead synthesizes.
 
-5. **The lead generates a SPEC file.** Using the template from `core/spec-generation`, it writes `SPEC-rate-limiter.md` to the project root. The file covers objective, scope, subtasks in waves, boundaries, and success criteria.
+5. **The lead creates the spec directory.** It copies every file from `skills/core/spec-generation/references/` into `docs/specs/rate-limiter/`, then populates `spec.md` with frontmatter plus the template body — folding scout's findings into Assumptions and Technical Approach, and critic's findings into Out of Scope and Boundaries.
 
-6. **The user approves the spec.** Nothing proceeds without explicit approval.
+6. **The user approves the spec (Group 0).** Lead records the decision in `group-log.md` and updates frontmatter `status: approved`. Nothing proceeds without explicit approval.
 
-7. **The user runs `/build`.** The command spawns the `builder` agent with the spec as context. The builder reads the spec literally — files to modify, acceptance criteria, commands to run.
+7. **The user runs `/build`.** The command spawns the `builder` agent with `docs/specs/rate-limiter/spec.md` as context. The builder reads the spec literally — files to modify, acceptance criteria, commands to run.
 
-8. **The builder implements the wave.** It loads `core/error-handling`, `core/debugging`, `core/git-workflow`, `core/style`, plus `go/error-handling`, `go/context`, `go/concurrency`, `go/database`, `go/style`. It writes code, runs tests, and returns a structured report using the [agent-reporting.md](agent-reporting.md) schema.
+8. **The builder implements the group.** It loads `core/error-handling`, `core/debugging`, `core/git-workflow`, `core/style`, plus `go/error-handling`, `go/context`, `go/concurrency`, `go/database`, `go/style`. It writes code, runs tests, and returns a structured report using the [agent-reporting.md](agent-reporting.md) schema.
 
-9. **The lead parses the report.** It checks the spec's acceptance criteria against the builder's evidence, and either proceeds to the next wave or halts on blockers.
+9. **The lead parses the report and pauses for sign-off.** It writes a new Group N section to `group-log.md` and emits a `needs-input` report asking the user to `approve`, `changes: <what>`, or `stop`. Execution does not advance without explicit sign-off.
 
 10. **A new learning surfaces.** During the work, the builder discovered that the project uses a non-obvious repository pattern. It calls `learn.sh` to record the learning to a `/tmp` buffer.
 
-11. **The session ends.** `session-end.sh` collects the buffer files, appends them to `~/.claude-resources/learnings/<project-slug>.jsonl`, and prunes to the last 50 entries. The next session will see this learning in its context.
+11. **The session ends.** `session-end.sh` collects the buffer files, appends them to `~/.claude-resources/learnings/<project-slug>.jsonl`, and prunes to the last 50 entries. The spec directory remains on disk with its current frontmatter state.
+
+12. **Resumption.** When the user starts a new session, `session-start.sh` detects that `rate-limiter` is still in progress and emits `active_specs: "rate-limiter:2/4"`. Lead surfaces the in-progress spec on its first response. The user runs `/orchestrate --resume rate-limiter` and execution picks up at the next pending group.
 
 The framework is this flow, repeated. Every command is an entry point. Every agent is a specialist. Every skill is a unit of knowledge the agent loads to do its work.
 

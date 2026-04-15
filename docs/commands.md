@@ -9,13 +9,13 @@ Commands are the entry points for the spec-driven workflow. Each command routes 
 | Command | Purpose | Agent | Phase |
 |---|---|---|---|
 | [/ideate](#ideate) | Refine a vague idea into a clear task | `critic` | Define (pre) |
-| [/define](#define) | Generate a structured SPEC file | `lead` (spawns `critic`) | Define |
+| [/define](#define) | Generate a spec directory | `lead` (spawns `critic` and `scout` in parallel) | Define |
 | [/plan](#plan) | Design architecture and structure | `architect` | Plan |
 | [/build](#build) | Implement application code | `builder` or `cli-builder` | Build |
 | [/test](#test) | Write and run tests | `tester` | Test |
 | [/review](#review) | Five-axis code review | `reviewer` | Review |
 | [/ship](#ship) | Containerize and add observability | `shipper` | Ship |
-| [/orchestrate](#orchestrate) | Decompose and delegate to multiple agents | `lead` | Cross-phase |
+| [/orchestrate](#orchestrate) | Decompose and delegate to multiple agents (supports `--resume <slug>`) | `lead` | Cross-phase |
 | [/learn](#learn) | Record a project-specific learning | utility (none) | Cross-phase |
 | [/compact](#compact) | Set output compression level | utility (none) | Cross-phase |
 
@@ -48,11 +48,11 @@ The critic walks three phases: understand and expand, evaluate and converge, sha
 
 ## /define
 
-**Purpose:** Analyze task requirements and generate a structured spec file.
+**Purpose:** Analyze task requirements, ground them in the existing codebase, and generate a structured spec directory.
 
 **Args:** A task description (may come from `/ideate` output).
 
-**Agent spawned:** `lead` (which spawns `critic` first for requirement clarification)
+**Agent spawned:** `lead` (which spawns `critic` and `scout` in parallel for clarification + discovery)
 
 **Phase:** Define — the most critical phase
 
@@ -70,13 +70,19 @@ The critic walks three phases: understand and expand, evaluate and converge, sha
 /define implement token bucket rate limiter with per-client limits, 100 req/s default
 ```
 
-Output: `SPEC-rate-limiter.md` in the project root. User approval is required before any downstream command runs.
+Output: `docs/specs/rate-limiter/` with four artifacts:
+- `spec.md` — the contract, including YAML frontmatter for execution state
+- `discovery.md` — scout's findings (prior art, patterns, gotchas)
+- `critique.md` — critic's adversarial analysis (gaps, XY problems, scope hazards)
+- `group-log.md` — append-only record, starting with Group 0 (spec approval)
+
+User approval is required before any downstream command runs.
 
 ## /plan
 
 **Purpose:** Design project architecture, package layout, interfaces, and dependency flow.
 
-**Args:** Optional — reads the approved SPEC file by default.
+**Args:** Optional slug (e.g., `/plan rate-limiter`) — reads `docs/specs/<slug>/spec.md` by default, or the single entry in `active_specs` if only one spec is in progress.
 
 **Agent spawned:** `architect`
 
@@ -103,7 +109,7 @@ The architect reads the approved spec and proposes a structure. User approval is
 
 **Purpose:** Implement application code following the spec and existing patterns.
 
-**Args:** Optional — reads the approved SPEC file by default.
+**Args:** Optional slug — reads `docs/specs/<slug>/spec.md`, or the single entry in `active_specs` if only one spec is in progress. If multiple specs are in progress, the spawned agent reports `needs-input` asking which applies.
 
 **Agent spawned:** `builder` for application code, `cli-builder` for CLI commands and flags.
 
@@ -124,7 +130,7 @@ The architect reads the approved spec and proposes a structure. User approval is
 /build
 ```
 
-The builder reads the spec, executes subtasks in wave order, and reports using the [agent-reporting.md](agent-reporting.md) schema.
+The builder reads the spec, executes subtasks in group order, and reports using the [agent-reporting.md](agent-reporting.md) schema.
 
 ## /test
 
@@ -211,9 +217,9 @@ Audits current state first, then adds: structured logging → health checks → 
 
 ## /orchestrate
 
-**Purpose:** Decompose a complex task into waves and delegate subtasks to specialist agents.
+**Purpose:** Decompose a complex task into groups and delegate subtasks to specialist agents. Supports resumption of in-progress specs via `--resume <slug>`.
 
-**Args:** A complex task description.
+**Args:** A complex task description OR `--resume <slug>` to resume an in-progress spec.
 
 **Agent spawned:** `lead`
 
@@ -222,19 +228,30 @@ Audits current state first, then adds: structured logging → health checks → 
 **When to use:**
 - Tasks spanning multiple concerns or multiple agents
 - Multi-package or multi-service work
-- Any task that needs wave execution
+- Any task that needs group execution
+- Resuming an in-progress spec after a session interruption
 
 **When NOT to use:**
 - Single-concern tasks (call the command for that concern directly)
 - Tasks that fit in one agent's role
 
-**Example:**
+**Example — fresh task:**
 
 ```
 /orchestrate migrate the user service from postgres to cockroachdb
 ```
 
-The lead agent spawns `critic` to clarify, generates a spec, seeks user approval, then runs waves — spawning builder, tester, reviewer, and others in parallel within waves, serializing across waves.
+Lead spawns `critic` and `scout` in parallel, synthesizes `docs/specs/<slug>/spec.md`, seeks Group 0 sign-off, then runs groups — spawning builder, tester, reviewer, and others in parallel within groups, serializing across groups. After each group, lead pauses for explicit user sign-off before advancing.
+
+**Example — resume:**
+
+```
+/orchestrate --resume user-service-cockroach
+```
+
+Lead reads `docs/specs/user-service-cockroach/spec.md` frontmatter, validates `current_group` against `group-log.md`, and restarts at the next pending group. Completed groups are never re-run. `--resume` MUST be the first token in `$ARGUMENTS` — any other shape is treated as a fresh task.
+
+On session start, `session-start.sh` emits an `active_specs` JSON field listing in-progress specs in the format `<slug>:<current_group>/<total_groups>`. Lead surfaces these on its first response so the user can decide whether to resume.
 
 ## /learn
 

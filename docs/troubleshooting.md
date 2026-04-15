@@ -37,8 +37,7 @@ If your issue is not listed here, check [getting-started.md](getting-started.md)
    ```bash
    grep "my-skill" agents/*.md
    ```
-3. Run `hooks/validate-skill-references.sh` to confirm all agent references resolve.
-4. If the skill is a language-specific one, confirm the language was detected (see "Language not detected" above).
+3. If the skill is a language-specific one, confirm the language was detected (see "Language not detected" above).
 
 ## Hooks not running
 
@@ -104,32 +103,6 @@ If your issue is not listed here, check [getting-started.md](getting-started.md)
 
 See [operational-learning.md](operational-learning.md) for the full learning lifecycle.
 
-## Validator errors
-
-### validate-marketplace: skill path broken
-
-**Diagnosis:** A path in `marketplace.json` does not resolve to a directory with a `SKILL.md`.
-
-**Fix:** Either create the missing `SKILL.md` at that path, or update the path in `marketplace.json` to the actual location. Remember the marketplace is `strict: true` — any missing path breaks the whole plugin install.
-
-### validate-skill-anatomy: missing section
-
-**Diagnosis:** A core or ops skill is missing one of the five required sections.
-
-**Fix:** Add the missing section with the exact heading text. The validator does a literal string match — `## When to Use` works, `## When to use` (lowercase `u`) does not. For meta-skills that legitimately cannot follow the anatomy (e.g., `skill-discovery`), add the marker line `<!-- meta-skill: skip-anatomy -->` anywhere in the file.
-
-### validate-skill-references: missing skill
-
-**Diagnosis:** An agent's `skills:` frontmatter references a skill that does not exist.
-
-**Fix:** Check for typos. Verify the referenced path (e.g., `core/my-skill` → `skills/core/my-skill/SKILL.md`) exists.
-
-### validate-agents: unknown agent
-
-**Diagnosis:** A slash command spawns an agent by a name that does not resolve to any file in `agents/`.
-
-**Fix:** Update the command to use the correct bare agent name (e.g., `reviewer`, `builder`). If you see `{plugin}:{lang}-*` template strings, replace them with the bare agent name — those templates are leftovers from an earlier design and do not resolve.
-
 ## Agent not found when running a command
 
 **Symptom:** A slash command runs but Claude Code cannot find the agent it tried to spawn.
@@ -140,21 +113,54 @@ See [operational-learning.md](operational-learning.md) for the full learning lif
 
 1. Read the command file and note the agent name it tries to spawn.
 2. Check that `agents/<name>.md` exists and that its frontmatter has the matching `name:` field.
-3. Run `hooks/validate-agents.sh` to confirm all command → agent references resolve.
-4. Confirm the agent's file does not contain leftover template strings in tools or skills fields.
+3. Confirm the agent's file does not contain leftover template strings in tools or skills fields.
 
-## SPEC file not generated
+## Spec directory not generated
 
-**Symptom:** You ran `/define` but no `SPEC-*.md` file was created.
+**Symptom:** You ran `/define` but no `docs/specs/<slug>/` directory was created.
 
-**Diagnosis:** The `lead` agent may have failed during the critic handoff or the spec generation step.
+**Diagnosis:** The `lead` agent may have failed during the critic + scout handoff or the spec generation step.
 
 **Fix:**
 
-1. Check the agent's output for error messages.
-2. Confirm the user provided a clear task description — if too vague, the critic may have returned a "needs more input" response rather than proceeding to spec generation.
-3. Confirm the user approved the spec when prompted — lead does not write the file to disk unless approval is explicit.
-4. Check that `lead` has the `Write` tool in its frontmatter (it should; if not, that is the bug).
+1. Check the agent's output for error messages from critic or scout.
+2. Confirm the user provided a clear task description — if too vague, critic may have returned `needs-input` rather than proceeding to spec generation.
+3. Confirm both critic AND scout ran — lead MUST spawn them in parallel, not sequentially.
+4. Confirm the user approved the spec when prompted — lead does not finalize the directory unless Group 0 sign-off is explicit.
+5. Check that `lead` has the `Write` tool in its frontmatter (it should; if not, that is the bug).
+6. Confirm the template files exist at `skills/core/spec-generation/references/` — lead copies them into place.
+
+## Active specs not surfacing on session start
+
+**Symptom:** A spec is in progress (`status: in-progress`) but `session-start.sh` is not listing it in `active_specs`.
+
+**Diagnosis:** Either the spec frontmatter is malformed, the session-start hook cannot read the spec file, or the directory is not under `docs/specs/`.
+
+**Fix:**
+
+1. Run the hook manually and inspect the JSON:
+   ```bash
+   hooks/session-start.sh | python3 -m json.tool
+   ```
+2. Check the spec's frontmatter fields:
+   ```bash
+   head -20 docs/specs/<slug>/spec.md
+   ```
+   Required: `task`, `status`, `current_group`, `total_groups`.
+3. Confirm `status` is not `complete` — completed specs are intentionally excluded from `active_specs`.
+
+## current_group drifts from group-log.md
+
+**Symptom:** `spec.md` frontmatter `current_group` does not match the last `## Group N` heading in `group-log.md`.
+
+**Diagnosis:** A session crashed or was killed between writing to `group-log.md` and updating `spec.md` frontmatter.
+
+**Fix:**
+
+1. Read `docs/specs/<slug>/group-log.md` and find the last `## Group N` heading.
+2. If the last group completed and the user approved it but frontmatter was not updated: set `current_group: N+1` in `spec.md`.
+3. If the group was in progress and the session crashed: set `current_group: N` and re-run the group via `/orchestrate --resume <slug>`.
+4. When in doubt, trust `group-log.md` — it is append-only and more reliable than frontmatter.
 
 ## ops_enabled false when expected to be true
 
@@ -188,7 +194,7 @@ See [ops-skills.md](ops-skills.md) for installation details.
 
 **Fix:**
 
-1. Run `hooks/validate-marketplace.sh` locally to check for broken paths.
+1. Inspect `.claude-plugin/marketplace.json` and confirm every `./skills/...` entry resolves to a directory containing `SKILL.md`.
 2. If a path is broken, the plugin cannot install cleanly.
 3. After fixing paths, re-run `claude plugin add`.
 
