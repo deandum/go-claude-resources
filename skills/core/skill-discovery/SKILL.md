@@ -68,7 +68,8 @@ When a task arrives, follow the first matching branch:
 - **Write ADR, README, design doc?**
   - **architect** → `core/documentation`
 - **Author or modify project invariants?**
-  - **architect** (or **critic** if evaluating whether an invariant is warranted) → `core/constitution`
+  - From scratch → **architect** (or **critic** if evaluating whether an invariant is warranted) → `core/constitution`
+  - From an existing codebase → **lead** (spawns `scout` + `critic` in parallel) → `core/constitution` (Proposing Candidates) via `/constitution-propose`
 - **Commit (local only)?**
   - **builder** or **shipper** → `core/git-workflow`
 - **Push, PR, release, or registry push (external writes)?**

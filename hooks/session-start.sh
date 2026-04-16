@@ -160,15 +160,25 @@ done
 AVAILABLE_TOOLS_STR=$(IFS=,; echo "${AVAILABLE_TOOLS[*]+"${AVAILABLE_TOOLS[*]}"}")
 MISSING_TOOLS_STR=$(IFS=,; echo "${MISSING_TOOLS[*]+"${MISSING_TOOLS[*]}"}")
 
+# Plugin manifest path — used by both MCP discovery (plugin-bundled .mcp.json)
+# and the USER_PLUGINS block below.
+_plugins_manifest="${HOME}/.claude/plugins/installed_plugins.json"
+
 # MCP server names. jq-only: proper JSON parsing is the only way to
 # handle nested objects correctly. When jq is missing, emit nothing
 # and warn once — MCP discovery is observational, no agent depends on it.
+#
+# Handles three on-disk shapes:
+#   1. {"mcpServers": {"name": {...}}}                — ~/.claude.json, settings.json
+#   2. {"projects": {"<dir>": {"mcpServers": {...}}}} — ~/.claude.json
+#   3. {"name": {"command": "...", "args": [...]}}    — flat, used by some plugin .mcp.json
 _mcp_extract_names() {
   local file="$1"
   [ -f "$file" ] || return 0
   jq -r '
     [
       (.mcpServers // {} | keys),
+      (to_entries | map(select(.value | type == "object" and has("command"))) | map(.key)),
       (.projects // {} | to_entries | map(.value.mcpServers // {} | keys) | add // [])
     ] | add | unique | .[]
   ' "$file" 2>/dev/null || true
@@ -180,6 +190,13 @@ if command -v jq >/dev/null 2>&1; then
     _mcp_extract_names "${HOME}/.claude.json"
     _mcp_extract_names "${HOME}/.claude/settings.json"
     _mcp_extract_names "$PROJECT_ROOT/.mcp.json"
+    # Plugin-bundled .mcp.json files live under each plugin's installPath.
+    if [ -f "$_plugins_manifest" ]; then
+      jq -r '.plugins // {} | to_entries[] | .value[] | .installPath' "$_plugins_manifest" 2>/dev/null \
+        | while IFS= read -r install_path; do
+            [ -n "$install_path" ] && _mcp_extract_names "$install_path/.mcp.json"
+          done
+    fi
   } | sort -u | tr '\n' ',' | sed 's/,$//')
 else
   echo "[hooks session-start] jq not installed; MCP server discovery skipped" >&2
@@ -191,7 +208,6 @@ USER_AGENTS=$(list_subdirs "${HOME}/.claude/agents" | tr '\n' ',' | sed 's/,$//'
 
 # User-scope plugins: read manifest, strip @marketplace suffix from keys
 USER_PLUGINS=""
-_plugins_manifest="${HOME}/.claude/plugins/installed_plugins.json"
 if [ -f "$_plugins_manifest" ]; then
   if command -v jq >/dev/null 2>&1; then
     USER_PLUGINS=$(jq -r '.plugins // {} | keys | map(split("@")[0]) | unique | join(",")' \

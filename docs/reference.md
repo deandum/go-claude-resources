@@ -1,6 +1,6 @@
 # Reference
 
-Single reference page for everything the framework ships: 10 commands, 9 agents, and 40 skills. Each entry links to the authoritative file — this page is an index, not a second copy.
+Single reference page for everything the framework ships: 11 commands, 9 agents, and 40 skills. Each entry links to the authoritative file — this page is an index, not a second copy.
 
 ## Commands
 
@@ -16,6 +16,7 @@ Commands are the entry points. Each routes to exactly one agent (or runs as a ut
 | [/review](../.claude/commands/review.md) | Five-axis code review | `reviewer` | Review |
 | [/ship](../.claude/commands/ship.md) | Containerize and add observability | `shipper` | Ship |
 | [/orchestrate](../.claude/commands/orchestrate.md) | Decompose and delegate (supports `--resume <slug>`) | `lead` | Cross-phase |
+| [/constitution-propose](../.claude/commands/constitution-propose.md) | Propose candidate invariants for `docs/constitution.md` from codebase evidence | `lead` (spawns `scout` + `critic` in parallel) | Governance |
 | [/learn](../.claude/commands/learn.md) | Record a project-specific learning | utility | Cross-phase |
 | [/compact](../.claude/commands/compact.md) | Set output compression level | utility | Cross-phase |
 

@@ -67,6 +67,70 @@ invariants:
 | `critical` | Violation forces a Critical finding; status becomes `needs-input`; group cannot advance without explicit user acceptance | Violation becomes a `Blocker: yes` clarifying question — the spec cannot be synthesized as written |
 | `important` | Violation contributes to Important findings; status becomes `needs-input`; user must accept before advance | Violation becomes a suggested scope hazard to fold into `Out of Scope` or `Ask first` |
 
+## Proposing Candidates
+
+Authoring an initial constitution from a blank page is the hard case. Running `/constitution-propose` spawns `lead` → `critic` + `scout` in parallel to survey the codebase and propose 3–10 candidate invariants grounded in concrete evidence. The user then accepts, edits, or rejects each one. This section is the discipline the three agents apply.
+
+**Trigger**: `/constitution-propose [optional focus]`. Focus narrows the survey to one area (`security`, `observability`, `error handling`, …). Empty = full checklist.
+
+**Directory**: `docs/specs/constitution-proposal/` — a reserved, non-feature slug. Only two files live there: `discovery.md` (scout) and `candidates.md` (critic). **No `spec.md`** — this is not spec generation, and session-start's active-spec scanner requires a `spec.md` to include a slug in `active_specs`, so this directory is correctly ignored.
+
+**Scout's brief** — survey the codebase per the checklist below and write `docs/specs/constitution-proposal/discovery.md`. Every claim cites `file:line`. If `$ARGUMENTS` is non-empty, narrow the checklist to that focus only.
+
+Discovery checklist (language-conditional):
+
+- *Error handling* — Go: `_ = err`, `panic(`, `return nil` after a non-nil err check. Python: bare `except:`, `pass` inside an except block. JS/TS: empty `catch {}`, unawaited promises inside async callers.
+- *Secret-like patterns* — literal `api_key`, `password`, `TOKEN=`, `BEGIN RSA PRIVATE KEY`, hardcoded bearer tokens. `.env` referenced with no committed `.env.example`.
+- *Test coverage gaps* — exported/public functions in `internal/`, `pkg/`, or the language equivalent with no matching test file.
+- *Boundary files* — HTTP handler files, DB migration directories, external API client packages. Catalogue paths; invariants typically bite here.
+- *Observability* — log call density, error-wrapping style (`%w` vs `%s`, wrapped vs swallowed), presence or absence of correlation-id plumbing across request boundaries.
+
+**Critic's brief** — read scout's `discovery.md`, apply the quality bar below, propose 3–10 candidates. Write `docs/specs/constitution-proposal/candidates.md`.
+
+Candidate quality bar (reject anything that fails all of these):
+
+- Cites at least one `file:line` of evidence from scout's discovery.
+- Has a grep-able `Detection` clause — not "reviewer judges."
+- Is not a style nudge (formatting, naming) — those belong in a linter.
+- Is not a nice-to-have — if reviewer would merge a PR that violates it, it is not an invariant.
+- Is not already covered by `project_constitution` — note existing invariants in `candidates.md` as "already invariant" rather than re-proposing.
+- Is not already in `candidates.md` with `status: rejected` from a prior run — a rejection is permanent until the user clears it.
+
+**Candidate file format** — YAML frontmatter mirroring `EXAMPLE_CONSTITUTION.md` plus a per-invariant `status` field, and body sections that add `Evidence:` and `Status:` on top of the standard six-field anatomy:
+
+```markdown
+---
+title: Constitution Candidates
+generated: 2026-04-16
+candidates:
+  - id: no-silent-failures
+    severity: critical
+    status: proposed
+---
+
+## no-silent-failures
+- **Severity**: critical
+- **Enforced by**: reviewer
+- **Scope**: all code under `internal/` and `cmd/`
+- **Rationale**: A caught error that is not logged, wrapped, or returned becomes invisible in prod.
+- **Detection**: `_ = err`, `return nil` after a non-nil err check, `catch {}` without body.
+- **Evidence**: `internal/ingest/worker.go:142`, `cmd/api/handler.go:88`
+- **Status**: proposed
+```
+
+**User review protocol** — lead prints the candidate summary, then waits for a reply of the form:
+
+```
+accept: [id1, id2, ...]
+edit:   <id>: <new-rationale-or-detection>
+reject: [id3, ...]
+stop
+```
+
+Lead mutates the `status:` field in `candidates.md` for every reviewed candidate (`accepted` / `edited` / `rejected`) so re-runs can skip them.
+
+**Promotion rule** — on `accept` or `edit`, lead appends the accepted body section to `docs/constitution.md` AND adds the `{id, severity}` entry to the frontmatter `invariants:` list. If `docs/constitution.md` does not exist, lead creates it first using the frontmatter and heading shape from `EXAMPLE_CONSTITUTION.md`. Rejected candidates stay in `candidates.md` with `status: rejected` — the record prevents re-proposal on the next run.
+
 ## Pair With
 
 - `core/code-review` — reviewer loads the constitution as a sixth check after the five axes
