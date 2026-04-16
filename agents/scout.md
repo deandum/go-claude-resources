@@ -78,7 +78,7 @@ Lead reads `discovery.md` alongside critic's `critique.md` before generating `sp
 
 ## Output Format
 
-Return a report to lead using the schema in [docs/agent-reporting.md](../docs/agent-reporting.md):
+Return a report to lead using the schema in [docs/extending.md](../docs/extending.md#agent-reporting):
 
 - **Status**: `complete` when `discovery.md` is written
 - **Files touched**: one row — `docs/specs/<slug>/discovery.md` (created)

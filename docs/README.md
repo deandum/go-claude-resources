@@ -1,35 +1,18 @@
 # Documentation
 
-Index of the `claude-resources` framework documentation. Each entry has a one-line description and a link.
+Five docs. Two sections: one for using the framework, one for extending it. Every topic has a single owner — nothing is repeated across files.
 
-## New users — start here
+## Use the framework
 
-- **[getting-started.md](getting-started.md)** — install the framework, walk through your first workflow (ideate → define → plan → build → test → review), customize for your project
-- **[architecture.md](architecture.md)** — the four building blocks (skills, agents, commands, hooks), the three plugin groups, how it all fits together
+Read in order.
 
-## Daily use
+1. **[getting-started.md](getting-started.md)** — install the framework and run through your first `/ideate → /define → /plan → /build → /test → /review` workflow.
+2. **[workflow.md](workflow.md)** — the spec-driven workflow deep dive: 7 phases, spec-directory anatomy, group execution, resumption, scope changes.
+3. **[reference.md](reference.md)** — every command, agent, and skill the framework ships. The one-stop lookup table.
 
-- **[workflow.md](workflow.md)** — the spec-driven workflow deep dive, SPEC file template, group execution, scope-change protocol
-- **[commands.md](commands.md)** — reference for all 10 slash commands, when to use each, example invocations
-- **[agents.md](agents.md)** — reference for all 8 specialist agents, their roles, tools, skills, when to use each
+## Extend the framework
 
-## Reference
+For contributors adding skills, agents, commands, languages, or tuning runtime behavior.
 
-- **[skills-catalog.md](skills-catalog.md)** — all 38 skills by tier (core / go / ops) and phase, one-line purpose and link to each
-- **[skill-anatomy.md](skill-anatomy.md)** — how to write a skill file: frontmatter, sections, style rules, supporting files
-- **[agent-reporting.md](agent-reporting.md)** — the structured report schema agents return after their work (Status, Files touched, Evidence, Follow-ups, Blockers)
-- **[hooks.md](hooks.md)** — lifecycle hooks (session-start, session-end, learn) and the five validator scripts, with schemas and troubleshooting
-- **[operational-learning.md](operational-learning.md)** — the learning capture system: recording learnings, JSONL format, persistence, cross-session injection
-
-## Extending
-
-- **[extending.md](extending.md)** — how to add a new core skill, language tier, agent, or slash command; validation workflow; style rules
-- **[skill-anatomy.md](skill-anatomy.md)** — required structure for new skills
-
-## Opt-in plugins
-
-- **[ops-skills.md](ops-skills.md)** — guide to the opt-in `ops-skills` plugin for external-write actions (`git push`, `gh pr create`, `docker push`, release publishing), detection via `ops_enabled` session context, installation, agent guards
-
-## Troubleshooting
-
-- **[troubleshooting.md](troubleshooting.md)** — consolidated troubleshooting for language detection, skill loading, hook failures, validator errors, agent routing, and more
+1. **[extending.md](extending.md)** — skill anatomy reference + procedures for adding a core skill, language tier, slash command, or agent (includes the agent reporting schema).
+2. **[operations.md](operations.md)** — how the framework runs: lifecycle hooks, the operational learning system, and the opt-in ops plugin for external-write actions.

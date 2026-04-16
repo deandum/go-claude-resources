@@ -4,20 +4,22 @@ Alert on symptoms, not causes. Make alerts actionable.
 
 ## Contents
 
-- [What to Alert On: Golden Signals](#what-to-alert-on-golden-signals)
-- [Decision Framework: Should This Be an Alert?](#decision-framework-should-this-be-an-alert)
-- [Prometheus Alerting Rules](#prometheus-alerting-rules)
-- [Alert Severity Levels](#alert-severity-levels)
-- [Alert Fatigue Prevention](#alert-fatigue-prevention)
+- [Alerting Best Practices](#alerting-best-practices)
+  - [Contents](#contents)
+  - [What to Alert On: Golden Signals](#what-to-alert-on-golden-signals)
+  - [Decision Framework: Should This Be an Alert?](#decision-framework-should-this-be-an-alert)
+  - [Prometheus Alerting Rules](#prometheus-alerting-rules)
+  - [Alert Severity Levels](#alert-severity-levels)
+  - [Alert Fatigue Prevention](#alert-fatigue-prevention)
 
 ## What to Alert On: Golden Signals
 
 Focus on user-facing symptoms:
 
-**1. Latency** - Request duration exceeding SLO
-**2. Traffic** - Unusual traffic patterns (spike or drop)
-**3. Errors** - Error rate exceeding threshold
-**4. Saturation** - Resource utilization approaching limits
+- **1. Latency** - Request duration exceeding SLO
+- **2. Traffic** - Unusual traffic patterns (spike or drop)
+- **3. Errors** - Error rate exceeding threshold
+- **4. Saturation** - Resource utilization approaching limits
 
 ## Decision Framework: Should This Be an Alert?
 

@@ -10,7 +10,7 @@ skills/
 ├── go/             # 15 Go implementation skills (default)
 └── ops/            # 4 opt-in external-write skills (NOT enabled by default)
 agents/             # 9 specialist agents
-hooks/              # Session lifecycle + learning system + validators
+hooks/              # Session lifecycle + learning system
 .claude/commands/   # 10 slash commands
 .claude-plugin/     # Plugin manifest + marketplace registry (3 plugin groups)
 docs/               # Deep-dive documentation + docs/specs/<slug>/ spec directories
@@ -34,7 +34,7 @@ references/         # Cross-cutting reference material
 ## Conventions
 
 ### Skill anatomy
-Every core skill has YAML frontmatter (`name`, `description`) and follows: When to Use, When NOT to Use, Core Process, Common Rationalizations, Red Flags, Verification. See [docs/skill-anatomy.md](docs/skill-anatomy.md) for the full reference.
+Every core skill has YAML frontmatter (`name`, `description`) and follows: When to Use, When NOT to Use, Core Process, Common Rationalizations, Red Flags, Verification. See [docs/extending.md](docs/extending.md#skill-anatomy) for the full reference.
 
 ### Naming
 - Skill dirs: `lowercase-kebab-case`
@@ -129,7 +129,7 @@ Every skill, agent, or command must meet these four standards:
 ## Adding a Skill
 
 1. Create `skills/<tier>/<skill-name>/SKILL.md`
-2. Follow the standard anatomy (see [Skill Anatomy](docs/skill-anatomy.md))
+2. Follow the standard anatomy (see [Skill Anatomy](docs/extending.md#skill-anatomy))
 3. Register in `marketplace.json` under the correct plugin group
 4. Update `skills/core/skill-discovery/SKILL.md` decision tree
 5. Update `README.md` skill list and count

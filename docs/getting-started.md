@@ -1,13 +1,37 @@
 # Getting Started
 
-Onboarding guide for the claude-resources framework -- a multi-language, spec-driven development framework for Claude Code.
+Install the framework and walk through your first workflow.
 
 ## Prerequisites
 
-- **Claude Code** CLI or IDE extension installed and configured
+- **Claude Code** CLI or IDE extension
 - **Git** for plugin installation and project detection
-- **Bash 4+** — hooks are pure bash; no python or other runtime required
-- **ast-grep** for structural code search (optional but recommended)
+- **Bash 4+** — hooks are pure bash, no python or other runtime required
+
+## Recommended tools
+
+None of these are required, but each unlocks behavior that the hooks and agents probe for via `session-start.sh`. When a tool is missing, agents fall back to a portable equivalent (e.g., `sed`/`grep`) and note the fallback in their output rather than failing. The `available_tools` and `missing_tools` fields in the session JSON show what was detected on your PATH.
+
+**Search and navigation**
+
+- **`ast-grep`** — structural (AST-level) code search. More precise than regex for refactors, interface discovery, and call-site analysis.
+- **`rg`** (ripgrep) — fast recursive grep. Agents prefer it over `grep` when present.
+- **`fd`** — fast `find` replacement. Used by scout for file discovery.
+
+**Data parsing**
+
+- **`jq`** — JSON parsing. Required for MCP server discovery in `session-start.sh` (without it, `mcp_servers` is empty).
+- **`yq`** — YAML parsing. Useful for reading spec frontmatter and CI config.
+
+**Concurrency**
+
+- **`flock`** (util-linux) — advisory file locking used by `session-end.sh` around learning persistence. Without it the hook falls back to a `mkdir`-based spinlock with a 5 s timeout.
+
+**DevOps and deployment**
+
+- **`gh`** — GitHub CLI. Used by `shipper` for PRs, releases, issue linking when `ops_enabled=true`.
+- **`docker`** — containerization. Used by `shipper` for image builds.
+- **`kubectl`** — Kubernetes CLI. Used by `shipper` when the project targets Kubernetes.
 
 ## Installation
 
@@ -17,11 +41,9 @@ Onboarding guide for the claude-resources framework -- a multi-language, spec-dr
 claude plugin add https://github.com/deandum/claude-resources
 ```
 
-This registers the plugin, hooks, agents, and slash commands automatically.
+Registers the plugin, hooks, agents, and slash commands automatically.
 
 ### Git clone
-
-Clone the repository and reference it as a local plugin:
 
 ```bash
 git clone https://github.com/deandum/claude-resources.git
@@ -31,17 +53,32 @@ Then add the path as a local plugin in your Claude Code configuration.
 
 ### Git submodule
 
-Add to an existing project as a submodule:
+Add to an existing project:
 
 ```bash
 git submodule add https://github.com/deandum/claude-resources.git .claude-resources
 ```
 
-This keeps the framework versioned alongside your project.
+Keeps the framework versioned alongside your project.
 
-## Your First Workflow
+## Customize for your project
 
-The framework follows a spec-driven workflow. Here is a concrete walkthrough from idea to shipped code:
+The framework looks for a `CLAUDE.md` file in your project root. This file tells the framework about your specific project.
+
+1. Copy `EXAMPLE_CLAUDE.md` from this repository to your project root as `CLAUDE.md`.
+2. Fill in your tech stack, build/test/lint commands, project boundaries, and conventions.
+3. The framework reads your `CLAUDE.md` and adapts agent behavior accordingly.
+
+Your `CLAUDE.md` should include:
+
+- Project structure overview
+- Build, test, and lint commands (exact, copy-paste runnable)
+- Boundaries: always do, ask first, never do
+- Project-specific conventions
+
+## Your first workflow
+
+The framework follows a spec-driven workflow. Here's a concrete walkthrough from idea to shipped code. For the full phase-by-phase reference, see [workflow.md](workflow.md).
 
 ### 1. Ideate
 
@@ -49,7 +86,7 @@ The framework follows a spec-driven workflow. Here is a concrete walkthrough fro
 /ideate build a rate limiter for our API gateway
 ```
 
-The critic agent takes your vague idea through three phases: understand and expand, evaluate and converge, sharpen and ship. Output: a concrete task statement ready for specification.
+The critic agent takes your vague idea through three sub-phases: understand and expand, evaluate and converge, sharpen and ship. Output: a concrete task statement ready for specification.
 
 ### 2. Define
 
@@ -57,7 +94,9 @@ The critic agent takes your vague idea through three phases: understand and expa
 /define implement token bucket rate limiter with per-client limits
 ```
 
-The lead agent spawns `critic` and `scout` in parallel. Critic challenges requirements and surfaces gaps (→ `critique.md`). Scout greps the codebase for prior art, patterns, and inherited gotchas (→ `discovery.md`). Lead synthesizes both into `docs/specs/rate-limiter/spec.md` — a structured spec with objective, scope, subtasks in groups, commands, boundaries, and success criteria. You review and approve the spec (Group 0 sign-off) before anything gets built.
+Lead spawns `critic` and `scout` in parallel. Critic challenges requirements and surfaces gaps (→ `critique.md`). Scout greps the codebase for prior art, patterns, and inherited gotchas (→ `discovery.md`). Lead synthesizes both into `docs/specs/rate-limiter/spec.md` — a structured spec with objective, scope, subtasks in groups, commands, boundaries, and success criteria.
+
+You review and approve the spec (Group 0 sign-off) before anything gets built.
 
 ### 3. Plan
 
@@ -65,7 +104,7 @@ The lead agent spawns `critic` and `scout` in parallel. Critic challenges requir
 /plan
 ```
 
-The architect agent reads the approved spec and designs the project structure: directory layout, package boundaries, dependency flow, and interface contracts.
+Architect reads the approved spec and designs the project structure: directory layout, package boundaries, dependency flow, and interface contracts.
 
 ### 4. Build
 
@@ -73,7 +112,7 @@ The architect agent reads the approved spec and designs the project structure: d
 /build
 ```
 
-The builder agent implements code following the spec's subtask groups. Group 1 tasks run in parallel; Group 2 starts only after Group 1 completes AND the user signs off on Group 1 results. Each task targets specific files with clear acceptance criteria. After every group, the lead emits a `needs-input` report asking you to `approve`, `changes: <what>`, or `stop` before advancing.
+Builder implements code following the spec's subtask groups. Group 1 tasks run in parallel; Group 2 starts only after Group 1 completes AND you sign off on Group 1 results. After every group, lead emits a `needs-input` report asking you to `approve`, `changes: <what>`, or `stop` before advancing.
 
 If a session ends mid-execution, resume with `/orchestrate --resume rate-limiter` — the framework tracks execution state in `spec.md` frontmatter and picks up at the next pending group.
 
@@ -83,7 +122,7 @@ If a session ends mid-execution, resume with `/orchestrate --resume rate-limiter
 /test
 ```
 
-The tester agent writes and runs tests covering the implementation. Tests verify the spec's success criteria are met.
+Tester writes and runs tests covering the implementation. Tests verify the spec's success criteria are met.
 
 ### 6. Review
 
@@ -91,131 +130,23 @@ The tester agent writes and runs tests covering the implementation. Tests verify
 /review
 ```
 
-The reviewer agent performs a 5-axis code review: correctness, security, performance, style, and maintainability.
+Reviewer performs a five-axis code review: correctness, security, performance, style, and maintainability. Critical or Important findings force `needs-input`.
 
-## Understanding Skill Tiers
-
-### Core skills (language-agnostic)
-
-20 workflow skills covering the full development lifecycle. These define *what* to do without prescribing *how* in any specific language. Examples: spec-generation, discovery, code-review, error-handling, testing, token-efficiency.
-
-Core skills contain:
-- Decision frameworks (when to use, when not to use)
-- Step-by-step processes
-- Common rationalizations and rebuttals
-- Red flags and verification checklists
-
-### Language skills (implementation-specific)
-
-15 Go implementation skills (currently the only supported language tier). These extend core skills with concrete code patterns, anti-patterns, and language-specific verification checks. Examples: go-api-design, go-concurrency, go-error-handling.
-
-Language skills contain:
-- Code patterns with explanations
-- Anti-patterns with rationale
-- Language-specific verification checklists
-
-### Automatic loading
-
-Skills are loaded automatically based on project language detection. The `session-start.sh` hook checks for marker files in your project root:
-
-| Marker file | Detected language |
-|-------------|-------------------|
-| `go.mod` | Go |
-| `package.json` + `angular.json` | Angular |
-| `package.json` (no angular) | Node |
-| `Cargo.toml` | Rust |
-| `pyproject.toml` or `requirements.txt` | Python |
-
-When a language is detected, its skill tier is loaded alongside the core skills.
-
-## Customizing for Your Project
-
-The framework looks for a `CLAUDE.md` file in your project root. This file tells the framework about your specific project:
-
-1. Copy `EXAMPLE_CLAUDE.md` from this repository to your project root as `CLAUDE.md`
-2. Fill in your tech stack, build/test/lint commands, project boundaries, and conventions
-3. The framework reads your `CLAUDE.md` and adapts agent behavior accordingly
-
-Your `CLAUDE.md` should include:
-- Project structure overview
-- Build, test, and lint commands (exact, copy-paste runnable)
-- Boundaries: always do, ask first, never do
-- Project-specific conventions
-
-## Selective Loading
-
-Not every project needs all 35 skills. Choose what fits:
-
-### Essential (3 skills)
-
-For smaller projects or quick tasks:
-- `spec-generation` -- structured specs prevent rework
-- `error-handling` -- consistent error strategy
-- `testing` -- test coverage and strategy
-
-### Full lifecycle (all 35)
-
-For greenfield projects or teams adopting the full workflow. All core and language skills active.
-
-### Custom selection
-
-Enable or disable individual skills in `marketplace.json`. Each skill is registered as a plugin entry and can be toggled independently.
-
-## Token Efficiency
-
-The framework is cost-aware by default. All agents apply `core/token-efficiency` at the **standard** level, reducing human-facing output tokens without affecting reasoning quality or spec fidelity.
-
-### What gets compressed
-
-- Agent responses to the user (terminal output)
-- Status updates, summaries, explanations
-- Commentary and narrative around code blocks
-
-### What is never compressed
-
-- **SPEC files** -- these are prompts for downstream agents. Full clarity is required.
-- **Agent-to-agent reports** -- lead uses these for group progression decisions.
-- **Code blocks, commands, file paths, error messages** -- unchanged at all levels.
-- **Acceptance and success criteria** -- testable contracts between agents.
-
-### Adjusting the level
-
-Use `/compact` to switch between intensity levels:
+### 7. Ship (optional)
 
 ```
-/compact standard     → Default: drop articles, filler, pleasantries
-/compact compressed   → Standard + abbreviations, fragments, tables over paragraphs
-/compact minimal      → Bullet-only, paths + status, maximum brevity
+/ship
 ```
 
-The key principle: verbose output burns tokens without adding value, but specs stay full-fidelity because they're prompts for other agents, not output for humans.
+Shipper adds Docker, structured logging, metrics, and health checks for production readiness.
 
-## Troubleshooting
+## Token efficiency
 
-**Language not detected?**
-Check that marker files exist in your project root. Detection runs in `session-start.sh` and emits `detected_languages` in the session JSON context. For Go, ensure `go.mod` is present. For Node, ensure `package.json` exists.
+All agents apply `core/token-efficiency` at the **standard** level by default — compressing human-facing output without affecting reasoning or spec fidelity. Switch levels with `/compact standard|compressed|minimal`. Specs and agent-to-agent reports are never compressed.
 
-**Skills not loading?**
-Verify the skill is registered in `.claude-plugin/marketplace.json`. Each skill needs an entry under the correct plugin group.
+## Next steps
 
-**Agent not finding skills?**
-Check the Language Detection section in the agent file under `agents/`. Each agent has detection logic that maps marker files to language tiers.
-
-**Learnings not appearing?**
-Check that `~/.claude-resources/learnings/` directory exists. Verify the project slug matches your git root basename: `basename $(git rev-parse --show-toplevel)`. Confirm the JSONL file has one valid JSON object per line with a `learning` field.
-
-**Hooks not running?**
-Check `hooks/hooks.json` is properly formatted. The file registers `SessionStart` and `SessionEnd` lifecycle hooks. Verify the scripts are executable: `ls -la hooks/*.sh`.
-
-For deeper troubleshooting on any of the above, see [troubleshooting.md](troubleshooting.md).
-
-## Next Steps
-
-Now that you have the framework installed and have walked through a workflow, these docs are the natural next reads:
-
-- **[architecture.md](architecture.md)** — understand the four building blocks (skills, agents, commands, hooks) and how they connect
-- **[commands.md](commands.md)** — full reference for all 10 slash commands
-- **[agents.md](agents.md)** — full reference for all 8 specialist agents
-- **[skills-catalog.md](skills-catalog.md)** — browse the 38 skills by tier and phase
-- **[workflow.md](workflow.md)** — deep dive on the spec-driven workflow and SPEC file template
-- **[extending.md](extending.md)** — add new skills, agents, or commands to your install
+- [workflow.md](workflow.md) — the spec-driven workflow deep dive
+- [reference.md](reference.md) — every command, agent, and skill the framework ships
+- [extending.md](extending.md) — add your own skills, agents, or commands
+- [operations.md](operations.md) — hooks, learning system, opt-in ops plugin

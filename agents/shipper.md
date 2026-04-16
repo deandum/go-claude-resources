@@ -29,10 +29,6 @@ production-ready.
 Language identified by the session-start hook (`detected_languages` in session JSON). Load the matching deployment skills for your role:
 
 - **go** → `go/docker`, `go/observability`
-- **angular** → `angular/*` deployment skills
-- **node** → `node/*` deployment skills
-- **rust** → `rust/*` deployment skills
-- **python** → `python/*` deployment skills
 
 ## What You Do
 
@@ -73,7 +69,7 @@ Language identified by the session-start hook (`detected_languages` in session J
 
 ## Output Format
 
-Wrap the deployment summary in the `docs/agent-reporting.md` envelope. **Status** is `complete` when the image builds, the container runs as non-root, and the health endpoint responds. The deployment details below go in **Evidence**:
+Wrap the deployment summary in the Agent Reporting envelope from `docs/extending.md`. **Status** is `complete` when the image builds, the container runs as non-root, and the health endpoint responds. The deployment details below go in **Evidence**:
 
 ```
 ## Deployment: [service name]

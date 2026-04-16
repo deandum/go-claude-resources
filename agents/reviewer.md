@@ -38,10 +38,6 @@ Both modes use the same five-axis framework. The scope differs: mini-review read
 Language identified by the session-start hook (`detected_languages` in session JSON). Load the matching review skills for your role:
 
 - **go** → `go/code-review`, `go/style`, `go/error-handling`, `go/concurrency`, `go/database`
-- **angular** → `angular/*` review skills
-- **node** → `node/*` review skills
-- **rust** → `rust/*` review skills
-- **python** → `python/*` review skills
 
 ## What You Do
 
@@ -91,7 +87,7 @@ Language identified by the session-start hook (`detected_languages` in session J
 
 ## Output Format
 
-Wrap the review in the `docs/agent-reporting.md` envelope. **Files touched** is `_None (read-only task)._`.
+Wrap the review in the Agent Reporting envelope from `docs/extending.md`. **Files touched** is `_None (read-only task)._`.
 
 **Status is driven by severity:**
 

@@ -205,7 +205,7 @@ Critic determines the actual dependency graph — don't assume a template.
 
 **How agents receive work:** Each agent is spawned with `docs/specs/<slug>/spec.md` as context. The spec contains everything needed — no verbal handoff, no implicit assumptions. The agent reads the spec, executes its assigned subtask, and returns a structured report. Discovery and critique artifacts are available at `docs/specs/<slug>/discovery.md` and `docs/specs/<slug>/critique.md` for agents that need the provenance trail.
 
-**How agents return work:** Agents report using the schema in `docs/agent-reporting.md` — `Status`, `Files touched`, `Evidence`, `Follow-ups`, and (when blocked) `Blockers`. Lead parses each report and validates results against the spec's acceptance criteria before starting the next group. Any `Follow-ups` worth addressing become subtasks in a later group or an updated spec.
+**How agents return work:** Agents report using the schema in `docs/extending.md` (Agent Reporting section) — `Status`, `Files touched`, `Evidence`, `Follow-ups`, and (when blocked) `Blockers`. Lead parses each report and validates results against the spec's acceptance criteria before starting the next group. Any `Follow-ups` worth addressing become subtasks in a later group or an updated spec.
 
 ## External Side Effects
 

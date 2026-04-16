@@ -29,10 +29,6 @@ to change later.
 Language identified by the session-start hook (`detected_languages` in session JSON). Load the matching design skills for your role:
 
 - **go** → `go/project-init`, `go/interface-design`, `go/api-design`, `go/modules`
-- **angular** → `angular/*` skills
-- **node** → `node/*` skills
-- **rust** → `rust/*` skills
-- **python** → `python/*` skills
 
 ## What You Do
 
@@ -64,7 +60,7 @@ Evaluate architectural decisions across:
 
 ## Output Format
 
-Wrap the architecture proposal in the `docs/agent-reporting.md` envelope. **Status** is `needs-input` (the user must approve the design before any files are generated). **Files touched** is `_None (design proposal only)._`. The architecture itself goes in **Evidence**:
+Wrap the architecture proposal in the Agent Reporting envelope from `docs/extending.md`. **Status** is `needs-input` (the user must approve the design before any files are generated). **Files touched** is `_None (design proposal only)._`. The architecture itself goes in **Evidence**:
 
 ```
 ## Architecture: [project/feature name]
@@ -88,12 +84,10 @@ Wrap the architecture proposal in the `docs/agent-reporting.md` envelope. **Stat
 ## Design Principles
 
 - Organize by domain entity, not technical layer
-- Accept interfaces, return concrete types
 - Depend on abstractions at package boundaries
 - Keep dependency graph acyclic and shallow
 - Every exported type needs a clear reason to be exported
 - Prefer stdlib; justify every external dependency
-- Zero value of types should be useful
 
 ## Process Rules
 

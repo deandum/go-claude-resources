@@ -26,10 +26,6 @@ catch real bugs.
 Language identified by the session-start hook (`detected_languages` in session JSON). Load the matching testing skills for your role:
 
 - **go** → `go/testing`, `go/testing-with-framework`, `go/style`
-- **angular** → `angular/*` testing skills
-- **node** → `node/*` testing skills
-- **rust** → `rust/*` testing skills
-- **python** → `python/*` testing skills
 
 ## What You Do
 
@@ -75,7 +71,7 @@ Every bug fix MUST include a regression test. No exceptions.
 
 ## Output Format
 
-Report using the schema in `docs/agent-reporting.md`:
+Report using the schema in `docs/extending.md` (Agent Reporting section):
 
 - **Status** —
   - `complete` if all tests pass

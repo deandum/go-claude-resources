@@ -153,7 +153,7 @@ updated: <ISO-8601 date>
 
 ### Per-group sign-off protocol
 
-After each group completes, lead emits a `needs-input` report (see [docs/agent-reporting.md](../../../docs/agent-reporting.md)) summarizing the group and asking: `"Approve group N and proceed to group N+1? (reply 'approve', 'changes: <what>', or 'stop')"`. On `approve`, lead records the decision in `group-log.md`, updates frontmatter `current_group`, and spawns the next group. On `changes`, lead updates the spec and re-runs affected tasks. On `stop`, lead sets `status: blocked` and halts.
+After each group completes, lead emits a `needs-input` report (see [docs/extending.md](../../../docs/extending.md#agent-reporting)) summarizing the group and asking: `"Approve group N and proceed to group N+1? (reply 'approve', 'changes: <what>', or 'stop')"`. On `approve`, lead records the decision in `group-log.md`, updates frontmatter `current_group`, and spawns the next group. On `changes`, lead updates the spec and re-runs affected tasks. On `stop`, lead sets `status: blocked` and halts.
 
 No new vocabulary — group-review pauses reuse the existing `needs-input` status from the agent-reporting schema.
 
