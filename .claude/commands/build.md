@@ -2,16 +2,12 @@
 description: Implement application code following established patterns
 ---
 
-## Task
+Two operating modes:
 
-Determine if this is a CLI command task or application code:
-- CLI commands, flags, config → spawn the `cli-builder` agent
-- All other code → spawn the `builder` agent
+**In-orchestration mode**: if a spec directory exists at `docs/specs/<slug>/spec.md` (slug from `$ARGUMENTS` or the sole `active_specs` entry) with `status: approved` or `in-progress`, load the `core/orchestration` skill and resume Phase 3 for the next pending group. Follow Steps 8–13 — spawn builder/cli-builder/shipper with self-contained prompts, run mini-review, gate via `AskUserQuestion`. Do not advance two groups without a gate.
 
-Pass this task to the agent: $ARGUMENTS
+**Ad-hoc mode**: if no spec matches, spawn the `builder` agent (or `cli-builder` for CLI commands/flags/config) directly with a self-contained prompt derived from `$ARGUMENTS`. The agent reports using the Agent Reporting schema. You summarize the result to the user. No gates.
 
-The agent has `core/error-handling` and `core/style` skills loaded, plus language-specific skills auto-loaded from the session-start context (e.g., `go/error-handling`, `go/style`, `go/context`, `go/concurrency`, `go/database`).
+If two or more specs are in-progress and `$ARGUMENTS` doesn't name one, ask the user which spec applies.
 
-If a spec directory exists at `docs/specs/<slug>/spec.md` (slug from `$ARGUMENTS` or the single entry in session-start `active_specs`), pass it as context to the agent. If two or more specs are in progress and no slug is provided, the spawned agent reports `needs-input` asking which spec applies.
-
-Build and run affected tests before reporting done.
+Task: $ARGUMENTS

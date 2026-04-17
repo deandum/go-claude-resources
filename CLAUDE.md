@@ -2,16 +2,18 @@
 
 Multi-language spec-driven development framework. Core skills (language-agnostic workflows) + language skills (implementation patterns). Currently supports Go.
 
+Main Claude runs the `core/orchestration` skill and acts as the lead — there is no `lead` subagent. Specialists (critic, scout, architect, builder, cli-builder, tester, reviewer, shipper) execute bounded tasks; main Claude synthesizes and gates.
+
 ## Structure
 
 ```
 skills/
-├── core/           # 21 language-agnostic workflow skills (default)
+├── core/           # 22 language-agnostic workflow skills (default)
 ├── go/             # 15 Go implementation skills (default)
 └── ops/            # 4 opt-in external-write skills (NOT enabled by default)
-agents/             # 9 specialist agents
+agents/             # 8 specialist agents
 hooks/              # Session lifecycle + learning system
-.claude/commands/   # 10 slash commands
+.claude/commands/   # 11 slash commands
 .claude-plugin/     # Plugin manifest + marketplace registry (3 plugin groups)
 docs/               # Deep-dive documentation + docs/specs/<slug>/ spec directories
                     # docs/constitution.md holds this repo's enforced invariants
@@ -41,7 +43,7 @@ Every core skill has YAML frontmatter (`name`, `description`) and follows: When 
 ### Naming
 - Skill dirs: `lowercase-kebab-case`
 - Each skill: one `SKILL.md` file
-- Core skills: no supporting files unless content exceeds ~100 lines. `core/spec-generation/references/` is an accepted exception — it ships four spec-directory templates (spec, discovery, critique, group-log) that lead copies into `docs/specs/<slug>/` on every `/define` invocation.
+- Core skills: no supporting files unless content exceeds ~100 lines. `core/spec-generation/references/` is an accepted exception — it ships four spec-directory templates (spec, discovery, critique, group-log) that the orchestration workflow copies into `docs/specs/<slug>/` on every `/define` invocation.
 - Language skills: may have `references/` and `templates/` subdirs
 
 ### Frontmatter
@@ -122,6 +124,7 @@ This repo's invariants live in [docs/constitution.md](docs/constitution.md) — 
 - Break existing frontmatter contracts
 - Add supporting files to core skills without justification
 - Remove skills without updating all cross-references
+- Spawn a `lead` subagent — main Claude IS the lead; load `core/orchestration` instead
 
 ## Adding a Language
 

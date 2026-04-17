@@ -2,15 +2,12 @@
 description: Analyze task requirements and generate a structured spec
 ---
 
-## Task
+Load the `core/orchestration` skill. You — the main Claude — are the lead. Do NOT spawn a `lead` subagent.
 
-Spawn the `lead` agent with this task: $ARGUMENTS
+Run Phase 1 (Analysis — spawn critic + scout in parallel, Gate 1 findings review, optional Gate 1 clarification round-trip) and Phase 2 (Spec Generation — synthesize spec.md, Gate 2 approval). Stop after Gate 2 with `spec.md` frontmatter at `status: approved`.
 
-The lead agent has the `core/spec-generation` skill loaded and will:
-1. Spawn the `critic` and `scout` agents in parallel — critic challenges the request, scout grounds it in existing code
-2. Create `docs/specs/<slug>/` by copying templates from `skills/core/spec-generation/references/`
-3. Synthesize critic's `critique.md` and scout's `discovery.md` into `spec.md`
-4. Present `spec.md` for user approval before any execution (Group 0 sign-off)
+Do NOT enter Phase 3. Execution is a separate user-invoked step (`/orchestrate --resume <slug>` or `/build`).
 
-Do not proceed to implementation without explicit user approval of the spec.
-If the task is too vague even for a spec, suggest running `/ideate` first.
+Task: $ARGUMENTS
+
+If the task is too vague for a spec, suggest `/ideate` first.

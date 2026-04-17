@@ -1,8 +1,13 @@
 ---
 name: skill-discovery
 description: >
-  Decision tree for routing tasks to the right agent and skills.
-  Loaded on session start. Use when unsure which agent applies.
+  Decision tree for routing any task to the right agent and skill set.
+  Loaded on session start and consulted whenever you're unsure which
+  specialist applies, which skill combination to load for a given task,
+  or when main Claude (running core/orchestration) needs to decide which
+  subagent to spawn for a Phase 3 subtask. Also surfaces available CLI
+  tools, MCP servers, and user-installed skills/agents/plugins so you
+  can prefer what's actually on the machine.
 user-invocable: false
 ---
 
@@ -11,6 +16,8 @@ user-invocable: false
 # Skill Discovery
 
 Route tasks to the right agent. Follow the first matching branch.
+
+**Relationship to orchestration.** When main Claude runs `core/orchestration` and reaches Phase 3, it consults this tree to decide which specialist to spawn for each subtask (builder vs cli-builder vs shipper vs tester). The tree is orthogonal to the orchestration workflow — orchestration owns *when* and *how* to spawn; this skill owns *who* to spawn.
 
 **Cross-cutting:** All agents load `core/token-efficiency` — compresses human-facing output, never specs or agent-to-agent artifacts. Use `/compact` to adjust level.
 
@@ -43,7 +50,7 @@ When a task arrives, follow the first matching branch:
 - **Grounding a task in existing code before spec?**
   - **scout** → `core/discovery` → runs in parallel with critic during `/define`
 - **Complex task spanning multiple concerns?**
-  - **lead** → decomposes into spec, delegates to team
+  - **main Claude via `core/orchestration`** → decomposes into spec, delegates to specialists, enforces HITL gates
 - **New project or scaffold from scratch?**
   - **architect** → `core/project-structure` + `lang/project-init`
 - **Design change, restructure, or define interfaces?**
@@ -69,7 +76,7 @@ When a task arrives, follow the first matching branch:
   - **architect** → `core/documentation`
 - **Author or modify project invariants?**
   - From scratch → **architect** (or **critic** if evaluating whether an invariant is warranted) → `core/constitution`
-  - From an existing codebase → **lead** (spawns `scout` + `critic` in parallel) → `core/constitution` (Proposing Candidates) via `/constitution-propose`
+  - From an existing codebase → **main Claude** (spawns `scout` + `critic` in parallel) → `core/constitution` (Proposing Candidates) via `/constitution-propose`
 - **Commit (local only)?**
   - **builder** or **shipper** → `core/git-workflow`
 - **Push, PR, release, or registry push (external writes)?**
@@ -85,7 +92,7 @@ When a task arrives, follow the first matching branch:
 |-------|------|-------|
 | critic | First pass on any non-trivial task | Don't skip for "obvious" tasks |
 | scout | Discovery of existing code during `/define` | Don't use for design or code writing |
-| lead | Multi-step tasks, spec generation | Don't use for single-concern tasks |
+| main Claude (`core/orchestration`) | Multi-step tasks, spec generation, gated execution | Don't use for single-concern tasks |
 | architect | Structure, interfaces, API design | Don't use for implementation |
 | builder | Application code (handlers, services) | Don't use for tests or infra |
 | cli-builder | CLI commands, flags, config | Don't use for non-CLI code |

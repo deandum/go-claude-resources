@@ -10,11 +10,12 @@
   "plugins": [
     {
       "name": "core-skills",
-      "description": "Language-agnostic process skills covering error handling, testing strategy, code review, API design, concurrency, observability, Docker, project structure, and code style",
+      "description": "Language-agnostic process skills covering spec-driven orchestration, error handling, testing strategy, code review, API design, concurrency, observability, Docker, project structure, and code style",
       "source": "./",
       "strict": true,
       "skills": [
         "./skills/core/skill-discovery",
+        "./skills/core/orchestration",
         "./skills/core/spec-generation",
         "./skills/core/api-design",
         "./skills/core/code-review",

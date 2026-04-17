@@ -27,9 +27,9 @@ Constraints, bugs, or surprising behavior that the spec must account for. From `
 
 - [Gotcha] — evidence at `path/to/evidence`.
 
-## Handoff to lead
+## Handoff to main Claude
 
-What lead should fold into the spec's Assumptions and Technical Approach sections.
+What main Claude should fold into the spec's Assumptions and Technical Approach sections during spec synthesis.
 
 - [Assumption] — already validated against codebase.
 - [File to add to Technical Approach] — `path/to/file`, action: [modify|create].

@@ -2,13 +2,10 @@
 description: Write and run tests for the codebase
 ---
 
-## Task
+Spawn the `tester` agent directly with a self-contained prompt for: $ARGUMENTS
 
-Spawn the `tester` agent with this task: $ARGUMENTS
+This is a standalone command — it does NOT enter the orchestration workflow. Use `/orchestrate` or `/build` if you want gated, spec-driven testing.
 
-The tester has `core/testing` loaded plus language-specific testing skills from session-start context (e.g., `go/testing`, or `go/testing-with-framework` if the project uses Ginkgo/Gomega).
+The tester's prompt must include the `Files:` list scoped to `*_test.*` paths, `Done when:` criterion, any relevant quoted context, and `Verify with:` (e.g., `go test -race ./pkg/foo`).
 
-If a spec directory exists at `docs/specs/<slug>/spec.md` (slug from `$ARGUMENTS` or the single entry in session-start `active_specs`), pass it as context so the tester knows the success criteria it must verify.
-
-Run tests with race detection (where available) after writing.
-If any test fails, the tester returns `needs-input` with the failures listed — it does NOT auto-fix. Surface the failures to the user and wait for direction.
+Tester runs tests with race detection. On any failure it returns `Status: needs-input` with failures listed in Blockers — it does NOT auto-fix. Surface the failures to the user verbatim; the user decides whether to investigate, fix, or stop.

@@ -15,7 +15,7 @@ What is missing from the task as stated? Unstated assumptions, missing acceptanc
 
 ## Clarifying Questions
 
-Every gap that cannot be resolved from task text + codebase becomes a question the user must answer before spec synthesis. Each question carries a suggested default so the flow stays fast when the default is acceptable. `Blocker: yes` means proceeding without an answer would make the spec silently wrong — lead pauses at Step 2b until these are resolved.
+Every gap that cannot be resolved from task text + codebase becomes a question the user must answer before spec synthesis. Each question carries a suggested default so the flow stays fast when the default is acceptable. `Blocker: yes` means proceeding without an answer would make the spec silently wrong — main Claude pauses at Gate 1's clarification round-trip until these are resolved.
 
 1. **Q:** [the question]
    **Suggested default:** [the answer to use if the user skips]
@@ -39,9 +39,9 @@ Where does scope want to creep? Where does the task straddle boundaries that sho
 
 - [Hazard] — [what would expand scope if not contained].
 
-## Handoff to lead
+## Handoff to main Claude
 
-What lead should fold into the spec's Out of Scope, Boundaries, and Success Criteria sections.
+What main Claude should fold into the spec's Out of Scope, Boundaries, and Success Criteria sections during spec synthesis.
 
 - **Out of Scope**: [item] — rationale.
 - **Ask first**: [action] — rationale.

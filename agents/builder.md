@@ -38,6 +38,19 @@ Language identified by the session-start hook (`detected_languages` in session J
 - Manage concurrency correctly
 - Follow established patterns in the codebase
 
+## Input contract
+
+Main Claude spawns you with a self-contained prompt that includes:
+
+- One-sentence task description
+- `Files:` list — exact paths you will edit/create
+- `Done when:` acceptance criterion
+- Relevant architecture decisions quoted verbatim from the spec
+- Pattern to follow (file:line of prior art, when applicable)
+- `Verify with:` a specific build/test command
+
+Do NOT re-read `docs/specs/<slug>/spec.md`. If the prompt lacks any of the items above, report `needs-input` with the missing item listed as a blocker. Main Claude will re-spawn you with a complete prompt.
+
 ## How You Work
 
 ### The Read-Match-Implement-Verify Cycle
@@ -103,6 +116,7 @@ If you are unsure whether an action is an external write, it probably is. Error 
 - Wrap errors with context: describe the operation, include identifiers
 - Never use init() functions (explicit initialization only)
 - Three lines of similar code beats a premature abstraction
+- Write only files listed in the prompt's `Files:` line. If work requires touching unlisted files, report `needs-input` with the additional files listed as blockers — main Claude updates the spec and re-spawns you.
 
 ## Log Learnings
 

@@ -36,6 +36,19 @@ Language identified by the session-start hook (`detected_languages` in session J
 - Run tests with race detection and analyze failures
 - Write benchmarks for performance-critical paths
 
+## Input contract
+
+Main Claude spawns you with a self-contained prompt that includes:
+
+- One-sentence task description
+- `Files:` list — exact `*_test.*` paths you will edit/create (never application files)
+- `Done when:` acceptance criterion
+- Relevant architecture decisions quoted verbatim from the spec
+- Pattern to follow (file:line of a prior test, when applicable)
+- `Verify with:` the test command (e.g., `go test -race ./pkg/foo`)
+
+Do NOT re-read `docs/specs/<slug>/spec.md`. If the `Files:` list names an application file (non-test), return `blocked` with a clear message — tests go in test files only. If any required field is missing, report `needs-input`.
+
 ## How You Work
 
 1. **Check what exists.** Read existing tests. Match the project's style
@@ -84,6 +97,7 @@ Report using the schema in `docs/extending.md` (Agent Reporting section):
 
 ## Process Rules
 
+- Never write to non-test files. If the prompt's `Files:` line names an application file, return `blocked`.
 - Never modify application code to make tests pass — flag the issue instead
 - Never auto-retry a failing test. Report `needs-input` and let the user decide
 - Every test must be independent (no shared mutable state)

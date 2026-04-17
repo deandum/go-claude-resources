@@ -1,9 +1,17 @@
 ---
 name: constitution
 description: >
-  Author and maintain a project constitution — the list of invariants
-  reviewer and critic enforce on every spec and every diff. Use when
-  adding, editing, or sunsetting project-wide non-negotiables.
+  Author and maintain a project constitution at docs/constitution.md — the
+  list of invariants that reviewer and critic enforce on every spec and every
+  diff. Load this skill whenever you're creating a new constitution from
+  scratch or from EXAMPLE_CONSTITUTION.md, proposing candidate invariants via
+  /constitution-propose, adding or editing an invariant, sunsetting an
+  obsolete rule, or promoting a recurring "don't do X" review comment into an
+  enforced invariant. Also use when a post-incident review surfaces a rule
+  that should have been caught mechanically. Reviewer and critic consume the
+  registered invariants automatically via the project_constitution
+  session-start field — you do not need this skill for enforcement, only for
+  authoring.
 ---
 
 # Constitution
@@ -69,7 +77,7 @@ invariants:
 
 ## Proposing Candidates
 
-Authoring an initial constitution from a blank page is the hard case. Running `/constitution-propose` spawns `lead` → `critic` + `scout` in parallel to survey the codebase and propose 3–10 candidate invariants grounded in concrete evidence. The user then accepts, edits, or rejects each one. This section is the discipline the three agents apply.
+Authoring an initial constitution from a blank page is the hard case. Running `/constitution-propose` has main Claude spawn `critic` + `scout` in parallel to survey the codebase and propose 3–10 candidate invariants grounded in concrete evidence. The user then accepts, edits, or rejects each one. This section is the discipline the agents apply.
 
 **Trigger**: `/constitution-propose [optional focus]`. Focus narrows the survey to one area (`security`, `observability`, `error handling`, …). Empty = full checklist.
 
@@ -118,7 +126,7 @@ candidates:
 - **Status**: proposed
 ```
 
-**User review protocol** — lead prints the candidate summary, then waits for a reply of the form:
+**User review protocol** — main Claude prints the candidate summary, then waits for a reply of the form:
 
 ```
 accept: [id1, id2, ...]
@@ -127,14 +135,14 @@ reject: [id3, ...]
 stop
 ```
 
-Lead mutates the `status:` field in `candidates.md` for every reviewed candidate (`accepted` / `edited` / `rejected`) so re-runs can skip them.
+Main Claude mutates the `status:` field in `candidates.md` for every reviewed candidate (`accepted` / `edited` / `rejected`) so re-runs can skip them.
 
-**Promotion rule** — on `accept` or `edit`, lead appends the accepted body section to `docs/constitution.md` AND adds the `{id, severity}` entry to the frontmatter `invariants:` list. If `docs/constitution.md` does not exist, lead creates it first using the frontmatter and heading shape from `EXAMPLE_CONSTITUTION.md`. Rejected candidates stay in `candidates.md` with `status: rejected` — the record prevents re-proposal on the next run.
+**Promotion rule** — on `accept` or `edit`, main Claude appends the accepted body section to `docs/constitution.md` AND adds the `{id, severity}` entry to the frontmatter `invariants:` list. If `docs/constitution.md` does not exist, main Claude creates it first using the frontmatter and heading shape from `EXAMPLE_CONSTITUTION.md`. Rejected candidates stay in `candidates.md` with `status: rejected` — the record prevents re-proposal on the next run.
 
 ## Pair With
 
 - `core/code-review` — reviewer loads the constitution as a sixth check after the five axes
-- `core/spec-generation` — lead mirrors `critical` invariants into the spec's `Never do` tier verbatim
+- `core/spec-generation` — main Claude mirrors `critical` invariants into the spec's `Never do` tier verbatim during spec synthesis
 - `core/skill-discovery` — routes "authoring or modifying project invariants" to this skill
 
 ## Common Rationalizations

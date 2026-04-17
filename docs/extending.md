@@ -232,7 +232,7 @@ Agents are specialist roles spawned by slash commands.
 
 ### Agent reporting
 
-All code-writing and review agents — `builder`, `cli-builder`, `tester`, `reviewer`, `shipper`, `architect` — end their work with a structured report. The `lead` agent parses each report and validates results against the spec's success criteria before spawning the next group.
+All code-writing and review agents — `builder`, `cli-builder`, `tester`, `reviewer`, `shipper`, `architect` — end their work with a structured report. Main Claude (running the `core/orchestration` skill) parses each report and validates results against the spec's success criteria before spawning the next group.
 
 Every report has these sections in order. Use them literally as headings.
 
@@ -242,8 +242,8 @@ Every report has these sections in order. Use them literally as headings.
 - **`blocked`** — cannot proceed without outside intervention; Blockers section mandatory.
 - **`needs-input`** — work done but a decision is required before finalizing. Used when:
   - Two viable designs, unclear spec, ambiguous slug when multiple specs are active.
-  - Group sign-off pauses in multi-group orchestration — see `agents/lead.md` Step 5.
-  - Pre-spec findings review — lead presents raw critic + scout findings before synthesizing the spec (Step 2).
+  - Group sign-off pauses in multi-group orchestration — see `skills/core/orchestration/SKILL.md` Phase 3 (Steps 8–13).
+  - Pre-spec findings review — main Claude presents raw critic + scout findings before synthesizing the spec (Gate 1).
   - **Test failures** — tester stops on first failure batch, lists failures in Blockers, does not auto-retry.
   - **Critical or Important review findings** — severity drives status; Critical/Important forces `needs-input` regardless of the reviewer's opinion of the issue's realness.
 
@@ -297,9 +297,9 @@ ok  	example/pkg/service	0.203s
 
 #### Why structured, not prose
 
-- **Lead parses it.** In multi-group orchestration, `lead` reads each report and decides whether to proceed to the next group. Free-form prose is ambiguous.
+- **Main Claude parses it.** In multi-group orchestration, main Claude reads each report and decides whether to proceed to the next group. Free-form prose is ambiguous.
 - **The report doubles as a PR description.** `Status`/`Files touched`/`Evidence` is already the body of a good commit message.
-- **Follow-ups persist.** A structured follow-up field prevents drift. Lead can fold them into the next group's spec instead of losing them in chat scrollback.
+- **Follow-ups persist.** A structured follow-up field prevents drift. Main Claude can fold them into the next group's spec instead of losing them in chat scrollback.
 - **Blockers fail loud.** When status is `blocked`, the section is mandatory — agents can't quietly stall.
 
 #### Rationalizations to avoid

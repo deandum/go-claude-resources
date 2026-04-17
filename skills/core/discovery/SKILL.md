@@ -1,9 +1,14 @@
 ---
 name: discovery
 description: >
-  Ground a task in the existing codebase before specification. Use when
-  starting /define or /orchestrate to map relevant files, patterns, and
-  inherited constraints. Prevents specs built on phantom assumptions.
+  Ground a task in the existing codebase before specification — grep for
+  prior art, read similar features, surface inherited gotchas, write
+  discovery.md. Load this skill whenever you're running scout during
+  /define or /orchestrate, whenever a task touches an area of the codebase
+  you have not read in this session, whenever the task mentions a feature
+  name that might already exist, or whenever recent_learnings flags a
+  gotcha or pattern near the task. Prevents specs built on phantom
+  assumptions.
 ---
 
 # Discovery
@@ -62,7 +67,7 @@ Populate the four sections of `docs/specs/<slug>/discovery.md`:
 - **Existing Surface** — every file/function cited, with a one-line relevance note
 - **Patterns to Follow** — each pattern with an example path
 - **Inherited Gotchas** — each gotcha with evidence
-- **Handoff to lead** — what should fold into Assumptions and Technical Approach
+- **Handoff to main Claude** — what should fold into Assumptions and Technical Approach
 
 Stay terse. Headline findings only. Detailed forensic notes do not belong here.
 
@@ -94,4 +99,8 @@ Stay terse. Headline findings only. Detailed forensic notes do not belong here.
 - [ ] Handoff section names specific items to fold into the spec, not general advice
 - [ ] Discovery artifact is shorter than the spec template — not a second spec
 
-Pair with: `core/skill-discovery`, `core/spec-generation`.
+## Pair With
+
+- `core/spec-generation` — discovery.md is one of the four required artifacts in the spec directory; this skill owns its shape.
+- `core/skill-discovery` — routes "grounding a task in existing code" to this skill.
+- `core/orchestration` — main Claude spawns scout (which loads this skill) during Phase 1 in parallel with critic.

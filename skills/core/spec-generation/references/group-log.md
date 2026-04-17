@@ -5,7 +5,7 @@ created: <ISO-8601 date>
 
 # Group Log: [Task Title]
 
-Append-only. Lead writes one section per completed group. Resumption reads this file to confirm the last completed group before advancing `current_group` in `spec.md` frontmatter.
+Append-only audit trail. Main Claude writes one section per completed group plus an entry per gate decision. Resumption reads this file to confirm the last completed group before advancing `current_group` in `spec.md` frontmatter.
 
 ## Group 0: Spec approval
 
@@ -33,7 +33,7 @@ Task summary is the cognitive-load anchor — one line per task, signal first. F
 - **Important**: _None._
 - **Suggestions**: _None._
 
-(When severity is Critical or Important, lead cannot advance past this group without explicit user acceptance.)
+(When severity is Critical or Important, main Claude cannot advance past this group without explicit user acceptance via `AskUserQuestion`.)
 
 ### User decision
 - <approve | changes: ... | stop>

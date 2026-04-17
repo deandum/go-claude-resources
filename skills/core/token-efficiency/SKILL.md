@@ -25,7 +25,7 @@ Verbose output burns tokens without adding value. Compress prose to the user, ne
 ## When NOT to Use
 
 - SPEC files — these are prompts for downstream agents, not human output
-- Agent-to-agent reports (builder → lead, tester → lead)
+- Agent-to-agent reports (builder → main Claude, tester → main Claude)
 - Review findings consumed by builder for fixes
 - Architecture docs consumed by builder for structure
 - Subtask descriptions, acceptance criteria, success criteria
@@ -64,7 +64,7 @@ Everything in Compressed, plus:
 - Bullet-only output — no transitional prose
 - File paths + status only for build/test reports
 - Maximum abbreviation
-- Suitable for high-volume orchestration where lead manages many subagent results
+- Suitable for high-volume orchestration where main Claude manages many subagent results
 
 ## Content-Type Decision Table
 
@@ -72,7 +72,7 @@ Everything in Compressed, plus:
 |---------|-----------|-----|
 | Agent → human output | Yes, active level | User-facing prose, not agent instructions |
 | SPEC files | **Never** | Consumed by agents as prompts — full clarity required |
-| Agent → agent reports | **Never** | Lead uses these for group progression decisions |
+| Agent → agent reports | **Never** | Main Claude uses these for group progression decisions |
 | Review findings | **Never** | Builder consumes these for fixes |
 | Code blocks | **Never** | Byte-for-byte preservation |
 | Commands with flags | **Never** | Agents execute literally |

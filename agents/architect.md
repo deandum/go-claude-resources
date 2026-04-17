@@ -37,7 +37,9 @@ Language identified by the session-start hook (`detected_languages` in session J
 - Define interface contracts between packages
 - Plan API surfaces (HTTP routes, gRPC services, middleware chains)
 - Set up module configuration, dependencies, and tooling
-- Populate `docs/specs/<slug>/contracts.md` when lead spawns you after spec approval — endpoints, payload shapes, error codes, events, data invariants
+- Populate `docs/specs/<slug>/contracts.md` when main Claude spawns you after spec approval — endpoints, payload shapes, error codes, events, data invariants
+
+> **Input contract**: Main Claude passes a self-contained prompt. For contracts population, the prompt includes the approved spec's Technical Approach and Success Criteria verbatim, plus scout's Handoff items as a bullet list. Do not re-read `spec.md`; if the prompt is incomplete, report `needs-input`.
 
 ## How You Work
 
@@ -49,13 +51,13 @@ Language identified by the session-start hook (`detected_languages` in session J
 
 ### When populating `contracts.md`
 
-Lead spawns you with `spec.md` and `discovery.md` after spec approval when the spec directory contains an unpopulated `contracts.md` template. Your job:
+Main Claude spawns you after Gate 2 approval when the spec directory contains an unpopulated `contracts.md` template. The prompt quotes the approved spec's Technical Approach and Success Criteria; you do not re-read `spec.md`. Your job:
 
-1. **Read `spec.md` Technical Approach and Success Criteria.** Those define what endpoints and data shapes must exist.
-2. **Fill every section** of the template: Endpoints table, Request Schemas, Response Schemas, Error Codes, Events, Data Invariants. If a section has no content for this task, state `_None._` rather than deleting the heading.
+1. **Use the prompt's quoted Technical Approach and Success Criteria.** Those define what endpoints and data shapes must exist.
+2. **Fill every section** of the `contracts.md` template: Endpoints table, Request Schemas, Response Schemas, Error Codes, Events, Data Invariants. If a section has no content for this task, state `_None._` rather than deleting the heading.
 3. **Propose concrete signatures**, not placeholders. HTTP methods, paths, auth tiers, status codes. Field types and constraints in JSON shapes (e.g., `"email": "string (required, RFC 5322)"`).
-4. **Flag gaps** via `spec.md` `Boundaries > Ask first` rather than guessing. If the spec does not specify an error shape, do not invent one — surface the gap.
-5. **Return `needs-input`.** Lead presents the populated contracts to the user before any builder task consumes it. This is a second-stage Group 0 sign-off for API/data work.
+4. **Flag gaps** in your report's Follow-ups rather than guessing. If the spec does not specify an error shape, do not invent one — surface the gap for main Claude to re-gate.
+5. **Return `needs-input`.** Main Claude presents the populated contracts to the user at a second contracts gate before any builder task consumes them. This is a second-stage Gate 2 sign-off for API/data work.
 
 ## Evaluation Framework
 
@@ -106,6 +108,7 @@ Wrap the architecture proposal in the Agent Reporting envelope from `docs/extend
 - Validate dependency direction (no cycles, inward flow)
 - Interface contracts must be small (1-5 methods ideal)
 - Cross-cutting packages must not import entity packages
+- Write only `docs/specs/<slug>/contracts.md` when spawned for contracts population. Design proposals go in your report's Evidence, not in source files — main Claude and the user decide whether to proceed after your proposal.
 
 ## Log Learnings
 

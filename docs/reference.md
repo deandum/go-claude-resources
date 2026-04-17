@@ -1,61 +1,67 @@
 # Reference
 
-Single reference page for everything the framework ships: 11 commands, 9 agents, and 40 skills. Each entry links to the authoritative file — this page is an index, not a second copy.
+Single reference page for everything the framework ships: 11 commands, 8 agents, and 41 skills. Each entry links to the authoritative file — this page is an index, not a second copy.
 
 ## Commands
 
-Commands are the entry points. Each routes to exactly one agent (or runs as a utility). Command files are small by design (10–25 lines) and contain no language-detection logic — detection lives in `session-start.sh`.
+Commands are the entry points. Each either loads `core/orchestration` (main Claude drives the workflow) or spawns exactly one specialist agent. Command files are small by design (10–25 lines) and contain no language-detection logic — detection lives in `session-start.sh`.
 
-| Command | Purpose | Agent | Phase |
+| Command | Purpose | Driver | Phase |
 |---|---|---|---|
-| [/ideate](../.claude/commands/ideate.md) | Refine a vague idea into a clear task | `critic` | Define (pre) |
-| [/define](../.claude/commands/define.md) | Generate a spec directory | `lead` (spawns `critic` + `scout` in parallel) | Define |
-| [/plan](../.claude/commands/plan.md) | Design architecture and structure | `architect` | Plan |
-| [/build](../.claude/commands/build.md) | Implement application code | `builder` or `cli-builder` | Build |
-| [/test](../.claude/commands/test.md) | Write and run tests | `tester` | Test |
-| [/review](../.claude/commands/review.md) | Five-axis code review | `reviewer` | Review |
-| [/ship](../.claude/commands/ship.md) | Containerize and add observability | `shipper` | Ship |
-| [/orchestrate](../.claude/commands/orchestrate.md) | Decompose and delegate (supports `--resume <slug>`) | `lead` | Cross-phase |
-| [/constitution-propose](../.claude/commands/constitution-propose.md) | Propose candidate invariants for `docs/constitution.md` from codebase evidence | `lead` (spawns `scout` + `critic` in parallel) | Governance |
+| [/ideate](../.claude/commands/ideate.md) | Refine a vague idea into a clear task | `critic` (with `core/idea-refine`) | Define (pre) |
+| [/define](../.claude/commands/define.md) | Generate a spec directory | Main Claude (via `core/orchestration` Phases 1–2; spawns `critic` + `scout`) | Define |
+| [/plan](../.claude/commands/plan.md) | Populate `contracts.md` (in-orchestration) or propose structure (ad-hoc) | `architect` | Plan |
+| [/build](../.claude/commands/build.md) | Implement application code | `builder` / `cli-builder` (in-orchestration: main Claude resumes Phase 3) | Build |
+| [/test](../.claude/commands/test.md) | Write and run tests (standalone) | `tester` | Test |
+| [/review](../.claude/commands/review.md) | Five-axis code review (standalone full-review mode) | `reviewer` | Review |
+| [/ship](../.claude/commands/ship.md) | Containerize and add observability | `shipper` (in-orchestration: main Claude resumes Phase 3) | Ship |
+| [/orchestrate](../.claude/commands/orchestrate.md) | Full workflow, supports `--resume <slug>` | Main Claude (via `core/orchestration`) | Cross-phase |
+| [/constitution-propose](../.claude/commands/constitution-propose.md) | Propose candidate invariants for `docs/constitution.md` | Main Claude (spawns `scout` + `critic`) | Governance |
 | [/learn](../.claude/commands/learn.md) | Record a project-specific learning | utility | Cross-phase |
 | [/compact](../.claude/commands/compact.md) | Set output compression level | utility | Cross-phase |
 
 Notes:
 
-- `/orchestrate --resume <slug>` picks up an in-progress spec from `docs/specs/<slug>/`. Lead validates `current_group` against `group-log.md` before restarting.
+- `/orchestrate --resume <slug>` picks up an in-progress spec from `docs/specs/<slug>/`. Main Claude validates `current_group` against `group-log.md` before restarting.
 - `/compact` accepts `standard` (default), `compressed`, or `minimal`. See [`core/token-efficiency`](../skills/core/token-efficiency/SKILL.md).
 - `/learn` accepts a learning text and optional category (`convention`, `gotcha`, `pattern`, `tool`). See [operations.md](operations.md) for the lifecycle.
 
 ## Agents
 
-Every command routes to exactly one agent. Agents are language-agnostic — they load language-specific skills dynamically from session-start context. Each agent ends its work with a structured report (schema in [extending.md](extending.md#agent-reporting)).
+Main Claude orchestrates the workflow and spawns one specialist agent per bounded task. Agents are language-agnostic — they load language-specific skills dynamically from session-start context. Each agent ends its work with a structured report (schema in [extending.md](extending.md#agent-reporting)).
 
 | Agent | Role | Tools | Memory | Spawned by |
 |---|---|---|---|---|
-| [critic](../agents/critic.md) | Task analyst (adversarial) | Read, Grep, Glob, Bash | none | `/ideate`, `/define`, `/orchestrate` |
-| [scout](../agents/scout.md) | Discovery — grounds spec in existing code | Read, Grep, Glob, Bash, Write | project | `/define`, `/orchestrate` |
-| [lead](../agents/lead.md) | Spec generator + orchestrator + per-group sign-off | Read, Grep, Glob, Bash, Write, Agent | project | `/define`, `/orchestrate` |
-| [architect](../agents/architect.md) | Structure and interface designer | Read, Glob, Grep, Bash, Write, Edit | project | `/plan` |
+| [critic](../agents/critic.md) | Task analyst (adversarial); writes `critique.md` | Read, Grep, Glob, Bash, Write | none | `/ideate`, `/define`, `/orchestrate` |
+| [scout](../agents/scout.md) | Discovery — grounds spec in existing code; writes `discovery.md` | Read, Grep, Glob, Bash, Write | project | `/define`, `/orchestrate` |
+| [architect](../agents/architect.md) | Structure and interface designer; writes `contracts.md` | Read, Glob, Grep, Bash, Write, Edit | project | `/plan` |
 | [builder](../agents/builder.md) | Application code implementer | Read, Edit, Write, Bash, Grep, Glob | project | `/build` |
 | [cli-builder](../agents/cli-builder.md) | CLI tool implementer | Read, Edit, Write, Bash, Grep, Glob | project | `/build` (CLI path) |
-| [tester](../agents/tester.md) | Test author | Read, Edit, Write, Bash, Grep, Glob | project | `/test` |
-| [reviewer](../agents/reviewer.md) | Code reviewer (read-only) | Read, Grep, Glob, Bash | project | `/review` |
+| [tester](../agents/tester.md) | Test author (writes `*_test.*` only) | Read, Edit, Write, Bash, Grep, Glob | project | `/test` |
+| [reviewer](../agents/reviewer.md) | Code reviewer (read-only) | Read, Grep, Glob, Bash | project | `/review`, mini-review during Phase 3 |
 | [shipper](../agents/shipper.md) | Deployment and observability | Read, Edit, Write, Bash, Grep, Glob | project | `/ship` |
 
 Shared conventions:
 
+- Main Claude (running `core/orchestration`) is the orchestrator — not a subagent. There is no `lead` agent.
 - All agents load `core/token-efficiency` by default.
-- Code-writing agents (`builder`, `cli-builder`, `shipper`, `lead`) consult `ops_enabled` in session context before running external-write commands. See [operations.md](operations.md#ops-plugin-opt-in).
+- Code-writing agents (`builder`, `cli-builder`, `shipper`) consult `ops_enabled` in session context before running external-write commands. Main Claude also checks `ops_enabled` before planning any group that includes external writes. See [operations.md](operations.md#ops-plugin-opt-in).
 - Language-specific skills load dynamically from the session-start context, not hardcoded in agent files.
 - For full role descriptions, skill lists, and process rules, read the agent file directly.
 
 ## Skills
 
-40 total: 21 core (language-agnostic), 15 Go (language-specific), 4 ops (opt-in external writes).
+41 total: 22 core (language-agnostic), 15 Go (language-specific), 4 ops (opt-in external writes).
 
-### Core skills (21) — language-agnostic
+### Core skills (22) — language-agnostic
 
 Every core skill follows the same anatomy: When to Use, When NOT, Core Process, Common Rationalizations, Red Flags, Verification. See [extending.md](extending.md#skill-anatomy) for the full template.
+
+**Workflow driver (cross-phase)**
+
+| Skill | Purpose |
+|---|---|
+| [orchestration](../skills/core/orchestration/SKILL.md) | Spec-driven workflow loaded by main Claude. Owns the state machine, the 3 HITL gates (findings, spec, per-group), and the audit trail in `group-log.md`. The core skill — every spec-driven command loads it. |
 
 **Define phase**
 
@@ -63,7 +69,7 @@ Every core skill follows the same anatomy: When to Use, When NOT, Core Process, 
 |---|---|
 | [idea-refine](../skills/core/idea-refine/SKILL.md) | Pre-spec ideation — divergent then convergent thinking, "Not Doing" list. Invoked by `/ideate`. |
 | [discovery](../skills/core/discovery/SKILL.md) | Ground a task in the existing codebase. Loaded by scout during `/define`. |
-| [spec-generation](../skills/core/spec-generation/SKILL.md) | Structured SPEC template and spec-directory layout — objective, assumptions, scope, subtasks in groups, commands, boundaries, success criteria, frontmatter state tracking. |
+| [spec-generation](../skills/core/spec-generation/SKILL.md) | Template contract for `docs/specs/<slug>/` artifacts — spec.md layout, frontmatter schema, parallelization markers. Pairs with orchestration. |
 | [skill-discovery](../skills/core/skill-discovery/SKILL.md) | Decision tree for routing tasks to the right agent. Meta-skill loaded on session start. |
 
 **Plan phase**

@@ -118,7 +118,7 @@ Architect reads the approved spec and designs the project structure: directory l
 /build
 ```
 
-Builder implements code following the spec's subtask groups. Group 1 tasks run in parallel; Group 2 starts only after Group 1 completes AND you sign off on Group 1 results. After every group, lead emits a `needs-input` report asking you to `approve`, `changes: <what>`, or `stop` before advancing.
+Builder implements code following the spec's subtask groups. Group 1 tasks run in parallel; Group 2 starts only after Group 1 completes AND you sign off on Group 1 results. After every group, main Claude pauses via `AskUserQuestion` asking you to `approve`, `changes: <what>`, or `stop` before advancing.
 
 If a session ends mid-execution, resume with `/orchestrate --resume rate-limiter` — the framework tracks execution state in `spec.md` frontmatter and picks up at the next pending group.
 

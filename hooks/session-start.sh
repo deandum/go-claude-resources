@@ -37,7 +37,10 @@ done
 LANG_SKILLS="${LANG_SKILLS% }"
 [ -z "$LANG_SKILLS" ] && LANG_SKILLS="none"
 
-# Detect ops-skills opt-in: presence of populated skills/ops/ directory
+# Detect ops-skills opt-in: ops_enabled is true iff skills/ops/ exists AND
+# contains at least one skill subdirectory (e.g. skills/ops/git-remote/).
+# An empty skills/ops/ directory is NOT sufficient — agents must find at least
+# one ops skill to load before writing to remote services.
 OPS_ENABLED="false"
 OPS_SKILLS=""
 if [ -d "$SKILLS_DIR/ops" ]; then
@@ -101,10 +104,16 @@ if [ -f "$CONSTITUTION_FILE" ]; then
       print out
     }
   ' "$CONSTITUTION_FILE")
+
+  # Warn if the file exists but parsing produced nothing — likely malformed YAML.
+  if [ -z "$PROJECT_CONSTITUTION" ]; then
+    echo "[hooks session-start] warn: $CONSTITUTION_FILE exists but no invariants parsed; check frontmatter (must have 'invariants:' list with 'id:' and 'severity:' on each entry)" >&2
+  fi
 fi
 
 # Scan for in-progress spec directories (status != complete).
-# One awk pass per spec replaces three sed|head|sed pipelines.
+# Validate frontmatter fields; malformed specs are excluded from ACTIVE_SPECS
+# with a stderr warning so the user can fix them.
 ACTIVE_SPECS=""
 SPECS_ROOT="$PROJECT_ROOT/docs/specs"
 if [ -d "$SPECS_ROOT" ]; then
@@ -130,9 +139,26 @@ if [ -d "$SPECS_ROOT" ]; then
     cw=${rest%%|*}
     tw=${rest#*|}
 
+    # Skip completed specs silently.
+    [ "$status" = "complete" ] && continue
+
+    # Warn and skip specs with missing/invalid frontmatter — main Claude would
+    # otherwise act on bogus state during resumption.
+    if [ -z "$status" ]; then
+      echo "[hooks session-start] warn: $spec_file has no 'status' field in frontmatter; excluded from active_specs" >&2
+      continue
+    fi
     case "$status" in
-      complete|"") continue ;;
+      draft|approved|in-progress|blocked) ;;
+      *)
+        echo "[hooks session-start] warn: $spec_file has invalid status='$status' (expected draft|approved|in-progress|complete|blocked); excluded" >&2
+        continue
+        ;;
     esac
+    if [ -z "$cw" ] || [ -z "$tw" ]; then
+      echo "[hooks session-start] warn: $spec_file missing current_group or total_groups; excluded" >&2
+      continue
+    fi
 
     entry="${slug}:${cw}/${tw}"
     if [ -z "$parts" ]; then
@@ -238,7 +264,7 @@ cat <<JSON
   "active_specs": "$(json_escape "$ACTIVE_SPECS")",
   "project_constitution": "$(json_escape "$PROJECT_CONSTITUTION")",
   "external_writes_policy": "Agents MUST check ops_enabled before executing any remote-write command (git push, gh pr, docker push, deploy). When ops_enabled=false, report the intended action as a Follow-up in the Agent Reporting format defined in docs/extending.md; do not execute.",
-  "spec_resumption_policy": "When active_specs is non-empty, lead surfaces the in-progress specs on first response and asks the user whether to resume (/orchestrate --resume <slug>), ignore, or mark blocked. See agents/lead.md Step 0.",
+  "spec_resumption_policy": "When active_specs is non-empty, main Claude surfaces the in-progress specs on first response via AskUserQuestion and asks whether to resume (/orchestrate --resume <slug>), ignore, or mark blocked. See skills/core/orchestration/SKILL.md Resumption section.",
   "constitution_policy": "When project_constitution is non-empty, reviewer MUST check every diff against the listed invariants after the five-axis review. Critical-severity violations force Critical findings; important-severity violations force Important findings. Critic MUST use invariants as the reference frame for Scope Hazards during /define. Full invariant text lives at docs/constitution.md."
 }
 JSON

@@ -41,7 +41,7 @@ All hooks are pure bash (bash 4+). No python, no other runtime. Shared helpers l
   "recent_learnings": "learning 1; learning 2; ...",
   "active_specs": "rate-limiter:2/4, cache-refactor:0/3",
   "external_writes_policy": "Agents MUST check ops_enabled before executing any remote-write command...",
-  "spec_resumption_policy": "When active_specs is non-empty, lead surfaces the in-progress specs..."
+  "spec_resumption_policy": "When active_specs is non-empty, main Claude surfaces the in-progress specs..."
 }
 ```
 
@@ -64,7 +64,7 @@ All hooks are pure bash (bash 4+). No python, no other runtime. Shared helpers l
 | `recent_learnings` | string | Semicolon-joined learning texts from the last 10 JSONL entries. |
 | `active_specs` | string | Comma-joined `<slug>:<current_group>/<total_groups>` tuples for in-progress specs. |
 | `external_writes_policy` | string | Instruction for agents to check `ops_enabled` before remote writes. |
-| `spec_resumption_policy` | string | Instruction for lead to surface `active_specs` on session start. |
+| `spec_resumption_policy` | string | Instruction for main Claude to surface `active_specs` on session start via `AskUserQuestion`. |
 
 **Third-party discovery is observational.** The framework has zero hard dependency on any detected tool. Bare systems are fully supported. Agents read these fields to surface relevant options alongside the framework's native approach, never to gate behavior.
 
@@ -261,14 +261,13 @@ Remove with `claude plugin remove ops-skills`, or simply delete/rename `skills/o
 
 ### Agent guards
 
-Four agents contain an "External Side Effects" section that enforces the gate:
+Three agents contain an "External Side Effects" section that enforces the gate:
 
 - `builder`
 - `cli-builder`
 - `shipper`
-- `lead`
 
-Each guard has the same structure:
+Main Claude (running `core/orchestration`) also checks `ops_enabled` before planning any group that includes external writes. Each guard has the same structure:
 
 1. Names the external-write actions (push, PR, release, registry, cloud deploy).
 2. States the rule: run only when `ops_enabled=true`; report as follow-up when `false`.

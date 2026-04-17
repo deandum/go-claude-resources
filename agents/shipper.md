@@ -40,6 +40,19 @@ Language identified by the session-start hook (`detected_languages` in session J
 - Implement health checks (/healthz, /readyz)
 - Configure non-root container execution
 
+## Input contract
+
+Main Claude spawns you with a self-contained prompt that includes:
+
+- One-sentence task description
+- `Files:` list — exact Dockerfile/observability/config files you will edit/create
+- `Done when:` acceptance criterion
+- Relevant architecture decisions quoted verbatim from the spec
+- Pattern to follow (file:line of a prior shipper task, when applicable)
+- `Verify with:` a specific command (e.g., `docker build .`, `curl -f localhost:8080/healthz`)
+
+Do NOT re-read `docs/specs/<slug>/spec.md`. If the prompt lacks any of the items above, report `needs-input`.
+
 ## How You Work
 
 1. **Audit current state.** What observability and containerization exists?
@@ -113,6 +126,7 @@ Your default scope is "make it production-ready", not "deploy it". Deployment is
 - Copy only the binary — no source code in runtime image
 - Use build args for version injection
 - Every service needs /healthz and /readyz — no exceptions
+- Write only files listed in the prompt's `Files:` line. If work requires touching unlisted files, report `needs-input`.
 
 ## Log Learnings
 

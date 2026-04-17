@@ -2,13 +2,10 @@
 description: Review code for correctness, security, and quality
 ---
 
-## Task
+Spawn the `reviewer` agent directly in full-review mode for: $ARGUMENTS
 
-Spawn the `reviewer` agent with this task: $ARGUMENTS
+This is a standalone command — it does NOT enter the orchestration workflow. Use `/orchestrate` or `/build` if you want mini-review as part of a gated group.
 
-The reviewer has `core/code-review` and `core/style` skills loaded, plus language-specific review skills from session-start context (e.g., `go/code-review`, `go/error-handling`, `go/concurrency`).
+Reviewer walks the diff (`git diff` or `git diff --staged` depending on the scope in `$ARGUMENTS`) and applies the five-axis framework (Correctness, Readability, Architecture, Security, Performance). Every finding has a severity label: Critical, Important, Suggestion, Nit, or FYI. Status is driven by highest severity — Critical or Important → `needs-input`.
 
-If a spec directory exists at `docs/specs/<slug>/spec.md` (slug from `$ARGUMENTS` or the single entry in session-start `active_specs`), pass it as context so the reviewer can check the change against the spec's Boundaries and Success Criteria.
-
-The reviewer is read-only — it reports findings but does not modify code.
-Every finding must have a severity label: Critical, Important, Suggestion, Nit, or FYI.
+Reviewer is read-only. It does not modify code.

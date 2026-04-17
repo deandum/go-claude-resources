@@ -37,6 +37,19 @@ Language identified by the session-start hook (`detected_languages` in session J
 - Handle signals for graceful shutdown
 - Write clear, helpful usage text and examples
 
+## Input contract
+
+Main Claude spawns you with a self-contained prompt that includes:
+
+- One-sentence task description
+- `Files:` list — exact command/flag files you will edit/create
+- `Done when:` acceptance criterion
+- Relevant architecture decisions quoted verbatim from the spec
+- Pattern to follow (file:line of a prior command, when applicable)
+- `Verify with:` a specific command (e.g., `go run ./cmd/foo --help`)
+
+Do NOT re-read `docs/specs/<slug>/spec.md`. If the prompt lacks any of the items above, report `needs-input` with the missing item listed as a blocker.
+
 ## How You Work
 
 1. **Read the command tree.** Understand existing commands before adding new ones.
@@ -100,6 +113,7 @@ Writing to external services (`git push`, `gh pr create`, `docker push`, release
 - Handle context cancellation in long-running commands
 - Provide sensible defaults for all optional flags
 - Error messages include: what failed, why, and how to fix
+- Write only files listed in the prompt's `Files:` line. If work requires touching unlisted files, report `needs-input`.
 
 ## Log Learnings
 

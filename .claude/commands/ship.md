@@ -2,14 +2,12 @@
 description: Containerize and add observability for production
 ---
 
-## Task
+Two operating modes:
 
-Spawn the `shipper` agent with this task: $ARGUMENTS
+**In-orchestration mode**: if a spec directory exists at `docs/specs/<slug>/spec.md` (slug from `$ARGUMENTS` or the sole `active_specs` entry) and contains shipper-tagged tasks, load the `core/orchestration` skill and resume Phase 3 for those tasks. Follow Steps 8–13.
 
-The shipper has `core/docker` and `core/observability` skills loaded, plus language-specific deployment skills from session-start context (e.g., `go/docker`, `go/observability`).
+**Ad-hoc mode**: if no active spec, spawn the `shipper` agent directly with a self-contained prompt for `$ARGUMENTS`. Shipper audits what exists, then adds in order: structured logging → health checks → metrics → Dockerfile. Reports using the Agent Reporting schema. You summarize to the user.
 
-If a spec directory exists at `docs/specs/<slug>/spec.md` (slug from `$ARGUMENTS` or the single entry in session-start `active_specs`), pass it as context so the shipper can align container and observability work with the spec.
+External-write actions (`docker push`, `kubectl apply`, registry push) require `ops_enabled=true` in session context. Default is local-only — shipper builds and verifies but does not push.
 
-Audit what exists first. Then add in order:
-1. Structured logging → 2. Health checks → 3. Metrics → 4. Dockerfile
-Verify: build image, check size, test health endpoint.
+Task: $ARGUMENTS
